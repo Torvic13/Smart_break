@@ -4,9 +4,14 @@ import '../dao/mock_dao_factory.dart';
 import '../models/espacio.dart';
 import '../models/ubicacion.dart';
 import '../models/caracteristica_espacio.dart';
+import '../models/usuario.dart'; // asegúrate de importar tu modelo Usuario
+import '../models/administrador_sistema.dart';
 
 class CrearEspacioScreen extends StatefulWidget {
-  const CrearEspacioScreen({super.key});
+  final Usuario
+  usuarioActual; // 👈 nuevo parámetro para saber quién está usando la app
+
+  const CrearEspacioScreen({super.key, required this.usuarioActual});
 
   @override
   State<CrearEspacioScreen> createState() => _CrearEspacioScreenState();
@@ -151,23 +156,41 @@ class _CrearEspacioScreenState extends State<CrearEspacioScreen> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _guardarEspacio,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.save),
-                  label: const Text('Guardar Espacio'),
+
+              // 🔒 Solo el admin puede ver el botón
+              if (widget.usuarioActual is AdministradorSistema ||
+                  widget.usuarioActual.rol == RolUsuario.admin)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isSaving ? null : _guardarEspacio,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.save),
+                    label: const Text('Guardar Espacio'),
+                  ),
+                )
+              else
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Text(
+                      'Solo los administradores pueden crear nuevos espacios.',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

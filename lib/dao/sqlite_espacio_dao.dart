@@ -9,7 +9,8 @@ import 'espacio_dao.dart';
 import 'database_provider.dart';
 
 class SqliteEspacioDAO implements EspacioDAO {
-  final Future<Database> _dbFuture = DatabaseProvider.instance.database;
+  final Future<Database> _dbFuture =
+      DatabaseProvider.instance.database as Future<Database>;
 
   SqliteEspacioDAO();
 
@@ -133,3 +134,5 @@ class SqliteEspacioDAO implements EspacioDAO {
     }).toList();
   }
 }
+
+/* Removed custom Database class to avoid shadowing sqflite's Database */

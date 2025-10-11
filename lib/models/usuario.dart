@@ -1,5 +1,6 @@
-
 enum EstadoUsuario { activo, inactivo, suspendido }
+
+enum RolUsuario { admin, estudiante }
 
 class Usuario {
   final String idUsuario;
@@ -7,6 +8,7 @@ class Usuario {
   final String passwordHash;
   final DateTime fechaCreacion;
   final EstadoUsuario estado;
+  final RolUsuario rol;
 
   Usuario({
     required this.idUsuario,
@@ -14,10 +16,10 @@ class Usuario {
     required this.passwordHash,
     required this.fechaCreacion,
     required this.estado,
+    required this.rol,
   });
 
-  void editarPerfil(Map<String, dynamic> datos) {
-  }
+  void editarPerfil(Map<String, dynamic> datos) {}
 
   Map<String, dynamic> toJson() {
     return {
@@ -26,6 +28,7 @@ class Usuario {
       'passwordHash': passwordHash,
       'fechaCreacion': fechaCreacion.toIso8601String(),
       'estado': estado.name,
+      'rol': rol.name,
     };
   }
 
@@ -38,6 +41,10 @@ class Usuario {
       estado: EstadoUsuario.values.firstWhere(
         (e) => e.name == json['estado'],
         orElse: () => EstadoUsuario.activo,
+      ),
+      rol: RolUsuario.values.firstWhere(
+        (r) => r.name == json['rol'],
+        orElse: () => RolUsuario.estudiante,
       ),
     );
   }

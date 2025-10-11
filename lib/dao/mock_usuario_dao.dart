@@ -4,7 +4,6 @@ import '../models/administrador_sistema.dart';
 import 'usuario_dao.dart';
 
 class MockUsuarioDAO implements UsuarioDAO {
-
   static final List<Usuario> _usuarios = [
     Estudiante(
       idUsuario: '1',

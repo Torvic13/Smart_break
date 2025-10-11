@@ -17,7 +17,9 @@ class Estudiante extends Usuario {
     required this.nombreCompleto,
     required this.ubicacionCompartida,
     required this.carrera,
-  });
+  }) : super(
+         rol: RolUsuario.estudiante, // asignamos el rol aquí
+       );
 
   void verMapa(Ubicacion ubicacionActual) {
     // Mock implementation - no real functionality
@@ -60,7 +62,7 @@ class Estudiante extends Usuario {
       ),
       codigoAlumno: json['codigoAlumno'],
       nombreCompleto: json['nombreCompleto'],
-      ubicacionCompartida: json['ubicacionCompartida'],
+      ubicacionCompartida: json['ubicacionCompartida'] ?? false,
       carrera: json['carrera'] ?? 'No especificada',
     );
   }

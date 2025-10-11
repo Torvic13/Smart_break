@@ -9,7 +9,10 @@ class MockAuthDAO implements AuthDAO {
   MockAuthDAO(this._usuarioDAO);
 
   @override
-  Future<bool> iniciarSesion({required String email, required String pass}) async {
+  Future<bool> iniciarSesion({
+    required String email,
+    required String pass,
+  }) async {
     try {
       final usuario = await _usuarioDAO.obtenerPorEmail(email);
       if (usuario != null) {
@@ -32,7 +35,7 @@ class MockAuthDAO implements AuthDAO {
       codigoAlumno: datos['codigoAlumno'] as String,
       nombreCompleto: datos['nombreCompleto'] as String,
       ubicacionCompartida: false,
-      carrera: datos['carrera'] as String, 
+      carrera: datos['carrera'] as String,
     );
     await _usuarioDAO.crear(nuevoUsuario);
   }

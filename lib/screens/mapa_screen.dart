@@ -7,6 +7,7 @@ import '../dao/auth_service.dart';
 import '../models/espacio.dart';
 import '../models/estudiante.dart';
 import '../models/administrador_sistema.dart';
+import '../models/usuario.dart';
 import 'lista_espacios_screen.dart';
 import 'detalle_espacio_screen.dart';
 import 'crear_espacio_screen.dart'; // 👈 pantalla de creación
@@ -98,7 +99,7 @@ class _MapaScreenState extends State<MapaScreen> {
   /// Navega al perfil apropiado según el tipo de usuario
   void _navigateToProfile() {
     final usuario = AuthService().usuarioActual;
-    
+
     if (usuario == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No hay usuario autenticado')),
@@ -121,6 +122,7 @@ class _MapaScreenState extends State<MapaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final usuario = AuthService().usuarioActual;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Smart Break'),
@@ -154,8 +156,9 @@ class _MapaScreenState extends State<MapaScreen> {
                   options: MapOptions(
                     initialCenter: _campusCenter,
                     initialZoom: 18.0,
-                    interactionOptions:
-                        const InteractionOptions(flags: InteractiveFlag.all),
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
                   ),
                   children: [
                     // Mapa base OpenStreetMap
@@ -210,15 +213,25 @@ class _MapaScreenState extends State<MapaScreen> {
                           ),
                           const SizedBox(height: 8),
                           _buildLegendItem(
-                              'Vacío', _getOcupacionColor(NivelOcupacion.vacio)),
+                            'Vacío',
+                            _getOcupacionColor(NivelOcupacion.vacio),
+                          ),
                           _buildLegendItem(
-                              'Bajo', _getOcupacionColor(NivelOcupacion.bajo)),
+                            'Bajo',
+                            _getOcupacionColor(NivelOcupacion.bajo),
+                          ),
                           _buildLegendItem(
-                              'Medio', _getOcupacionColor(NivelOcupacion.medio)),
+                            'Medio',
+                            _getOcupacionColor(NivelOcupacion.medio),
+                          ),
                           _buildLegendItem(
-                              'Alto', _getOcupacionColor(NivelOcupacion.alto)),
+                            'Alto',
+                            _getOcupacionColor(NivelOcupacion.alto),
+                          ),
                           _buildLegendItem(
-                              'Lleno', _getOcupacionColor(NivelOcupacion.lleno)),
+                            'Lleno',
+                            _getOcupacionColor(NivelOcupacion.lleno),
+                          ),
                         ],
                       ),
                     ),
@@ -227,24 +240,37 @@ class _MapaScreenState extends State<MapaScreen> {
               ],
             ),
 
-      // 🔽 Botones flotantes (crear + centrar)
+      // 🔽 Botones flotantes (crear + centrar) — mostrar 'crear' solo a administradores
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FloatingActionButton(
-            heroTag: 'crear',
-            backgroundColor: Colors.green,
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CrearEspacioScreen(),
-                ),
-              );
-              await _refrescarMapa(); // 🔄 refresca el mapa al volver
-            },
-            child: const Icon(Icons.add, color: Colors.white),
-          ),
+          if (usuario is AdministradorSistema ||
+              (usuario != null && usuario.rol == RolUsuario.admin))
+            FloatingActionButton(
+              heroTag: 'crear',
+              backgroundColor: Colors.green,
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) {
+                      final usuarioInner = AuthService().usuarioActual;
+                      if (usuarioInner == null) {
+                        return const Scaffold(
+                          body: Center(
+                            child: Text('No hay usuario autenticado'),
+                          ),
+                        );
+                      }
+                      return CrearEspacioScreen(usuarioActual: usuarioInner);
+                    },
+                  ),
+                );
+                await _refrescarMapa(); // 🔄 refresca el mapa al volver
+              },
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+
           const SizedBox(height: 10),
           FloatingActionButton(
             heroTag: 'centrar',
@@ -268,8 +294,7 @@ class _MapaScreenState extends State<MapaScreen> {
           Container(
             width: 12,
             height: 12,
-            decoration:
-                BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
           Text(label, style: const TextStyle(fontSize: 12)),
