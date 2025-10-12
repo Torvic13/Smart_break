@@ -11,6 +11,10 @@ class Espacio {
   final double promedioCalificacion;
   final Ubicacion ubicacion;
   final List<CaracteristicaEspacio> caracteristicas;
+  final List<String>? _categoriaIds;
+  
+  // Getter que garantiza que siempre devuelve una lista no-null
+  List<String> get categoriaIds => _categoriaIds ?? [];
 
   Espacio({
     required this.idEspacio,
@@ -20,7 +24,8 @@ class Espacio {
     required this.promedioCalificacion,
     required this.ubicacion,
     required this.caracteristicas,
-  });
+    List<String>? categoriaIds,
+  }) : _categoriaIds = categoriaIds ?? [];
 
   void actualizarOcupacion(String estado, String fuente) {
     // Mock implementation - no real functionality
@@ -39,6 +44,7 @@ class Espacio {
       'promedioCalificacion': promedioCalificacion,
       'ubicacion': ubicacion.toJson(),
       'caracteristicas': caracteristicas.map((c) => c.toJson()).toList(),
+      'categoriaIds': _categoriaIds ?? [],
     };
   }
 
@@ -56,6 +62,9 @@ class Espacio {
       caracteristicas: (json['caracteristicas'] as List)
           .map((c) => CaracteristicaEspacio.fromJson(c))
           .toList(),
+      categoriaIds: json['categoriaIds'] != null 
+          ? List<String>.from(json['categoriaIds'])
+          : [],
     );
   }
 }

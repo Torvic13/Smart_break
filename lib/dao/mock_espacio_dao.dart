@@ -37,6 +37,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '2',
@@ -70,6 +71,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '3',
@@ -103,6 +105,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '4',
@@ -136,6 +139,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '5',
@@ -169,6 +173,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '6',
@@ -202,6 +207,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '7',
@@ -235,6 +241,7 @@ class MockEspacioDAO implements EspacioDAO {
           tipoFiltro: 'servicio',
         ),
       ],
+      categoriaIds: const [],
     ),
   ];
 

@@ -3,7 +3,7 @@ import '../dao/auth_service.dart';
 import '../models/administrador_sistema.dart';
 import 'gestionar_categorias_screen.dart';
 import 'welcome_screen.dart';
-import 'crear_espacio_screen.dart'; // 👈 importa la pantalla de creación
+import 'crear_espacio_screen.dart'; // 
 
 /// Pantalla de perfil para administradores del sistema
 class AdminProfileScreen extends StatefulWidget {
@@ -143,7 +143,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => CrearEspacioScreen(
-                      usuarioActual: _adminProfile!, // 👈 pasa el admin actual
+                      usuarioActual: _adminProfile!, // 
                     ),
                   ),
                 );
