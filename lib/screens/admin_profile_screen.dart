@@ -3,6 +3,7 @@ import '../dao/auth_service.dart';
 import '../models/administrador_sistema.dart';
 import 'gestionar_categorias_screen.dart';
 import 'welcome_screen.dart';
+import 'crear_espacio_screen.dart'; // 👈 importa la pantalla de creación
 
 /// Pantalla de perfil para administradores del sistema
 class AdminProfileScreen extends StatefulWidget {
@@ -132,15 +133,18 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             
             const SizedBox(height: 12),
             
-            // Tarjeta de Gestionar Espacios
+            // 🔹 Tarjeta de Gestionar Espacios → CrearEspacioScreen
             _buildAdminOptionCard(
               title: 'Gestionar Espacios',
               subtitle: 'Crear, editar y eliminar espacios',
               icon: Icons.place,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Funcionalidad próximamente'),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CrearEspacioScreen(
+                      usuarioActual: _adminProfile!, // 👈 pasa el admin actual
+                    ),
                   ),
                 );
               },

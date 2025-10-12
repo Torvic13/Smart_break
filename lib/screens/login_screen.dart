@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../dao/mock_dao_factory.dart';
 import '../dao/auth_service.dart';
+import '../models/administrador_sistema.dart';  // 👈 importa el modelo admin
 import 'mapa_screen.dart';
 import 'register_screen.dart';
+import 'admin_profile_screen.dart';             // 👈 importa la pantalla admin
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,19 +48,37 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (loginSuccess && mounted) {
-      // Obtener el usuario completo y guardarlo en el servicio de autenticación
+      // ✅ Obtener el usuario completo
       final usuario = await usuarioDao.obtenerPorEmail(_emailController.text);
+
       if (usuario != null) {
         AuthService().setUsuario(usuario);
+
+        // ✅ Si es administrador, ir al panel admin
+        if (usuario is AdministradorSistema) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminProfileScreen(),
+            ),
+            (route) => false,
+          );
+        } else {
+          // ✅ Si no es admin, ir al mapa
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const MapaScreen(),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error al obtener los datos del usuario.';
+        });
       }
-      
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MapaScreen(),
-        ),
-        (route) => false,
-      );
     } else {
       setState(() {
         _isLoading = false;
@@ -228,8 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: () {
-                        },
+                        onPressed: () {},
                         child: const Text(
                           '¿Olvidaste tu contraseña?',
                           style: TextStyle(
@@ -238,8 +257,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 16),
-                    Row(
+                      const SizedBox(height: 16),
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(

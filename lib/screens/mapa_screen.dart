@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-
+import '../components/top_navbar.dart'; //
 import '../components/bottom_navbar.dart';              // 👈 usa tu barra reusable
 import '../dao/mock_dao_factory.dart';
 import '../dao/auth_service.dart';
@@ -86,24 +86,7 @@ class _MapaScreenState extends State<MapaScreen> {
 
     return Scaffold(
       extendBody: true, // para que la barra “glass” se superponga al mapa
-      appBar: AppBar(
-        title: const Text('Smart Break'),
-        backgroundColor: const Color(0xFF1976D2),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.list),
-            tooltip: 'Lista de Espacios',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ListaEspaciosScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-
+      appBar: const TopNavBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(
@@ -192,7 +175,7 @@ class _MapaScreenState extends State<MapaScreen> {
           if (usuario is AdministradorSistema) const SizedBox(height: 10),
           FloatingActionButton(
             heroTag: 'centrar',
-            backgroundColor: const Color(0xFF1976D2),
+            backgroundColor: const Color(0xFFF97316),
             onPressed: () {
               _mapController.move(_campusCenter, 18.0);
             },
