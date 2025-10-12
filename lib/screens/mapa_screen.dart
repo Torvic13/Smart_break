@@ -13,7 +13,15 @@ import '../models/administrador_sistema.dart';
 import '../models/usuario.dart';
 import 'lista_espacios_screen.dart';
 import 'detalle_espacio_screen.dart';
+<<<<<<< HEAD
 import 'crear_espacio_screen.dart';
+=======
+import 'crear_espacio_screen.dart'; // 👈 pantalla de creación
+import 'profile_screen.dart';
+import 'admin_profile_screen.dart';
+import 'filter_screen.dart';
+import '../models/categoria_espacio.dart';
+>>>>>>> 7d848809f03c60eb1586bce229eb5744e32eeacc
 
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key});
@@ -25,6 +33,9 @@ class MapaScreen extends StatefulWidget {
 class _MapaScreenState extends State<MapaScreen> {
   final MapController _mapController = MapController();
   List<Espacio> _espacios = [];
+  List<Espacio> _filteredEspacios = [];
+  List<CategoriaEspacio> _categorias = [];
+  List<String> _selectedCategoryIds = [];
   bool _isLoading = true;
 
   static const LatLng _campusCenter = LatLng(-12.084778, -76.971357);
@@ -32,17 +43,21 @@ class _MapaScreenState extends State<MapaScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEspacios();
+    _loadData();
   }
 
-  Future<void> _loadEspacios() async {
+  Future<void> _loadData() async {
     final daoFactory = Provider.of<MockDAOFactory>(context, listen: false);
     final espacioDAO = daoFactory.createEspacioDAO();
+    final categoriaDAO = daoFactory.createCategoriaDAO();
 
     try {
       final espacios = await espacioDAO.obtenerTodos();
+      final categorias = await categoriaDAO.obtenerTodas();
       setState(() {
         _espacios = espacios;
+        _filteredEspacios = espacios;
+        _categorias = categorias;
         _isLoading = false;
       });
     } catch (e) {
@@ -53,7 +68,7 @@ class _MapaScreenState extends State<MapaScreen> {
   }
 
   Future<void> _refrescarMapa() async {
-    await _loadEspacios();
+    await _loadData();
   }
 
   Color _getOcupacionColor(NivelOcupacion nivel) {
@@ -80,13 +95,89 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
+<<<<<<< HEAD
+=======
+  /// Navega al perfil apropiado según el tipo de usuario
+  void _navigateToProfile() {
+    final usuario = AuthService().usuarioActual;
+    
+    if (usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay usuario autenticado')),
+      );
+      return;
+    }
+
+    if (usuario is AdministradorSistema) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+      );
+    } else if (usuario is Estudiante) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const UserProfileScreen()),
+      );
+    }
+  }
+
+  void _applyFilters(List<String> selectedCategoryIds) {
+    setState(() {
+      _selectedCategoryIds = selectedCategoryIds;
+      _filteredEspacios = _espacios.where((espacio) {
+        return _selectedCategoryIds.contains(espacio.tipo);
+      }).toList();
+    });
+  }
+
+>>>>>>> 7d848809f03c60eb1586bce229eb5744e32eeacc
   @override
   Widget build(BuildContext context) {
     final usuario = AuthService().usuarioActual;
 
     return Scaffold(
+<<<<<<< HEAD
       extendBody: true, // para que la barra “glass” se superponga al mapa
       appBar: const TopNavBar(),
+=======
+      appBar: AppBar(
+        title: const Text('Smart Break'),
+        backgroundColor: const Color(0xFF1976D2),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ListaEspaciosScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FilterScreen(
+                    categorias: _categorias,
+                    onApplyFilters: _applyFilters,
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Mi Perfil',
+            onPressed: _navigateToProfile,
+          ),
+        ],
+      ),
+>>>>>>> 7d848809f03c60eb1586bce229eb5744e32eeacc
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(
@@ -105,7 +196,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       userAgentPackageName: 'com.example.smart_break',
                     ),
                     MarkerLayer(
-                      markers: _espacios.map((espacio) {
+                      markers: _filteredEspacios.map((espacio) {
                         return Marker(
                           width: 60,
                           height: 60,
