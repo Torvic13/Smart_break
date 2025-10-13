@@ -13,15 +13,11 @@ import '../models/administrador_sistema.dart';
 import '../models/usuario.dart';
 import 'lista_espacios_screen.dart';
 import 'detalle_espacio_screen.dart';
-<<<<<<< HEAD
-import 'crear_espacio_screen.dart';
-=======
 import 'crear_espacio_screen.dart'; // 👈 pantalla de creación
 import 'profile_screen.dart';
 import 'admin_profile_screen.dart';
 import 'filter_screen.dart';
 import '../models/categoria_espacio.dart';
->>>>>>> 7d848809f03c60eb1586bce229eb5744e32eeacc
 
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key});
@@ -95,8 +91,6 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
-<<<<<<< HEAD
-=======
   /// Navega al perfil apropiado según el tipo de usuario
   void _navigateToProfile() {
     final usuario = AuthService().usuarioActual;
@@ -130,16 +124,11 @@ class _MapaScreenState extends State<MapaScreen> {
     });
   }
 
->>>>>>> 7d848809f03c60eb1586bce229eb5744e32eeacc
   @override
   Widget build(BuildContext context) {
     final usuario = AuthService().usuarioActual;
 
     return Scaffold(
-<<<<<<< HEAD
-      extendBody: true, // para que la barra “glass” se superponga al mapa
-      appBar: const TopNavBar(),
-=======
       appBar: AppBar(
         title: const Text('Smart Break'),
         backgroundColor: const Color(0xFF1976D2),
@@ -177,7 +166,6 @@ class _MapaScreenState extends State<MapaScreen> {
           ),
         ],
       ),
->>>>>>> 7d848809f03c60eb1586bce229eb5744e32eeacc
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(

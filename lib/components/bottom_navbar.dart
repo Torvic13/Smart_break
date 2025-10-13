@@ -26,7 +26,7 @@ class BottomNavBar extends StatelessWidget {
             child: Container(
               height: 85,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05), // transparencia estilo glass
+                color: Colors.white.withOpacity(0.2), // transparencia estilo glass
                 border: Border(
                   top: BorderSide(color: Colors.white.withOpacity(0.15), width: 1),
                 ),
