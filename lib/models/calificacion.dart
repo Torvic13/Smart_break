@@ -1,28 +1,34 @@
 enum EstadoCalificacion { pendiente, aprobada, rechazada }
 
 class Calificacion {
-  final String idCalificacion;
-  final int puntuacion;
-  final String comentario;
-  final DateTime fecha;
-  final EstadoCalificacion estado;
+  String idCalificacion;
+  int puntuacion;
+  String comentario;
+  DateTime fecha;
+  EstadoCalificacion estado;
 
   Calificacion({
     required this.idCalificacion,
     required this.puntuacion,
     required this.comentario,
     required this.fecha,
-    required this.estado,
+    this.estado = EstadoCalificacion.pendiente,
   });
 
+  /// Permite editar campos dinámicamente (útil en DAO mock)
   void editar(Map<String, dynamic> nuevosDatos) {
-    // Mock implementation - no real functionality
+    if (nuevosDatos.containsKey('puntuacion')) {
+      puntuacion = nuevosDatos['puntuacion'];
+    }
+    if (nuevosDatos.containsKey('comentario')) {
+      comentario = nuevosDatos['comentario'];
+    }
+    if (nuevosDatos.containsKey('estado')) {
+      estado = nuevosDatos['estado'];
+    }
   }
 
-  void eliminar() {
-    // Mock implementation - no real functionality
-  }
-
+  /// Convierte el objeto a JSON (para almacenamiento o red)
   Map<String, dynamic> toJson() {
     return {
       'idCalificacion': idCalificacion,
@@ -33,6 +39,7 @@ class Calificacion {
     };
   }
 
+  /// Crea un objeto desde JSON
   factory Calificacion.fromJson(Map<String, dynamic> json) {
     return Calificacion(
       idCalificacion: json['idCalificacion'],
