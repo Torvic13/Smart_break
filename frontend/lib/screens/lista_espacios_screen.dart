@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../dao/mock_dao_factory.dart';
+import '../dao/dao_factory.dart';
 import '../models/espacio.dart';
 import 'detalle_espacio_screen.dart';
 import 'filtered_spaces_screen.dart';
@@ -46,7 +46,8 @@ class _ListaEspaciosScreenState extends State<ListaEspaciosScreen> {
   }
 
   Future<void> _loadEspacios() async {
-    final daoFactory = Provider.of<MockDAOFactory>(context, listen: false);
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+
     final espacioDAO = daoFactory.createEspacioDAO();
 
     try {

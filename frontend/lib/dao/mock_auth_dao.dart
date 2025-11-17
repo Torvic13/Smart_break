@@ -9,23 +9,23 @@ class MockAuthDAO implements AuthDAO {
   MockAuthDAO(this._usuarioDAO);
 
   @override
-  Future<bool> iniciarSesion({
+  Future<Usuario?> iniciarSesion({
     required String email,
     required String pass,
   }) async {
     try {
       final usuario = await _usuarioDAO.obtenerPorEmail(email);
-      if (usuario != null) {
-        return usuario.passwordHash == pass;
+      if (usuario != null && usuario.passwordHash == pass) {
+        return usuario;
       }
-      return false;
-    } catch (e) {
-      return false;
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
   @override
-  Future<void> crearCuenta(Map<String, dynamic> datos) async {
+  Future<Usuario> crearCuenta(Map<String, dynamic> datos) async {
     final nuevoUsuario = Estudiante(
       idUsuario: DateTime.now().millisecondsSinceEpoch.toString(),
       email: datos['email'] as String,
@@ -38,5 +38,6 @@ class MockAuthDAO implements AuthDAO {
       carrera: datos['carrera'] as String,
     );
     await _usuarioDAO.crear(nuevoUsuario);
+    return nuevoUsuario;
   }
 }

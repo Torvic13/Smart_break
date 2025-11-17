@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../dao/mock_dao_factory.dart';
+import '../dao/dao_factory.dart';
 import 'login_screen.dart';
 
 // Lista de carreras universitarias
@@ -70,18 +70,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final daoFactory = Provider.of<MockDAOFactory>(context, listen: false);
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
       final authDao = daoFactory.createAuthDAO();
-      
+
       final userData = {
         'nombreCompleto': _nombreController.text,
         'codigoAlumno': _codigoController.text,
-        'carrera': _carreraSeleccionada, // Incluir la carrera
+        'carrera': _carreraSeleccionada,
         'email': _emailController.text,
         'password': _passwordController.text,
       };
 
       await authDao.crearCuenta(userData);
+
 
       if (!mounted) return;
 

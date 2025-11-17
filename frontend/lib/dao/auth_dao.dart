@@ -1,6 +1,12 @@
 import '../models/usuario.dart';
 
 abstract class AuthDAO {
-  Future<bool> iniciarSesion({required String email, required String pass});
-  Future<void> crearCuenta(Map<String, dynamic> datos);
+  /// Devuelve el usuario autenticado o null si credenciales inválidas
+  Future<Usuario?> iniciarSesion({
+    required String email,
+    required String pass,
+  });
+
+  /// Crea la cuenta en el backend y devuelve el usuario creado
+  Future<Usuario> crearCuenta(Map<String, dynamic> datos);
 }

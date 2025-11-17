@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../models/espacio.dart';
 import '../models/categoria_espacio.dart';
 import '../dao/dao_factory.dart';
-import '../dao/mock_dao_factory.dart';
 import '../dao/categoria_dao.dart';
 
 /// Pantalla para mostrar los detalles de un espacio con todas sus categorías
@@ -21,18 +22,25 @@ class DetalleEspacioCategoriasScreen extends StatefulWidget {
 
 class _DetalleEspacioCategoriasScreenState
     extends State<DetalleEspacioCategoriasScreen> {
-  final DAOFactory _daoFactory = MockDAOFactory();
-  late final CategoriaDAO _categoriaDAO;
+  late CategoriaDAO _categoriaDAO;
+  bool _daoInicializado = false;
 
   Map<TipoCategoria, List<CategoriaEspacio>> _categoriasPorTipo = {};
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    _categoriaDAO = _daoFactory.createCategoriaDAO();
-    _cargarCategorias();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Inicializa el DAO usando Provider una sola vez
+    if (!_daoInicializado) {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      _categoriaDAO = daoFactory.createCategoriaDAO();
+      _daoInicializado = true;
+
+      _cargarCategorias();
+    }
   }
 
   /// Carga las categorías asignadas al espacio
@@ -43,12 +51,12 @@ class _DetalleEspacioCategoriasScreenState
     });
 
     try {
-      // Cargar todas las categorías y filtrar por las asignadas al espacio
       Map<TipoCategoria, List<CategoriaEspacio>> tempMap = {};
 
+      // Recorre todos los tipos de categoría
       for (var tipo in TipoCategoria.values) {
         final todasCategorias = await _categoriaDAO.obtenerPorTipo(tipo);
-        // Filtrar solo las categorías asignadas a este espacio
+
         final categoriasAsignadas = todasCategorias
             .where((cat) => widget.espacio.categoriaIds.contains(cat.idCategoria))
             .toList();
@@ -149,7 +157,7 @@ class _DetalleEspacioCategoriasScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Información del espacio
+                        // --- Información general del espacio --- //
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
@@ -246,7 +254,7 @@ class _DetalleEspacioCategoriasScreenState
                         ),
                         const SizedBox(height: 24),
 
-                        // Categorías por tipo
+                        // --- Categorías por tipo --- //
                         if (_categoriasPorTipo.isEmpty)
                           Container(
                             padding: const EdgeInsets.all(24),

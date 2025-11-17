@@ -50,41 +50,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _loadUserProfile() async {
-    final usuarioActual = AuthService().usuarioActual;
+  final usuarioActual = AuthService().usuarioActual;
 
-    if (usuarioActual != null && mounted) {
-      if (usuarioActual is Estudiante) {
-        setState(() {
-          _userProfile = usuarioActual;
-          _compartirUbicacion = usuarioActual.ubicacionCompartida;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    } else {
-      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
-      final usuarioDAO = daoFactory.createUsuarioDAO();
+  if (!mounted) return;
 
-      Usuario? user = await usuarioDAO.obtenerPorEmail(
-        '20251234@aloe.ulima.edu.pe',
-      );
-
-      if (user is Estudiante && mounted) {
-        setState(() {
-          _userProfile = user;
-          _compartirUbicacion = user.ubicacionCompartida;
-          _isLoading = false;
-        });
-      } else if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+  if (usuarioActual is Estudiante) {
+    setState(() {
+      _userProfile = usuarioActual;
+      _compartirUbicacion = usuarioActual.ubicacionCompartida;
+      _isLoading = false;
+    });
+    return;
   }
+
+  // Si hay sesión pero no es Estudiante (ej. admin)
+  if (usuarioActual != null) {
+    setState(() {
+      _isLoading = false;
+    });
+    return;
+  }
+
+  // Si no hay sesión (no debería pasar si entraste por login)
+  setState(() {
+    _isLoading = false;
+  });
+}
 
   void _removeFromFavorites(String nombreEspacio) {
     setState(() {
@@ -160,6 +151,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       );
 
       await usuarioDAO.actualizar(updatedUser);
+      AuthService().actualizarUsuario(updatedUser);
     }
 
     await Future.delayed(const Duration(milliseconds: 500));

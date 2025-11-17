@@ -4,7 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../models/espacio.dart';
 import '../models/ubicacion.dart';
 import '../models/administrador_sistema.dart';
-import '../dao/mock_dao_factory.dart';
+import '../dao/dao_factory.dart';
 import 'package:provider/provider.dart';
 
 class CrearEspacioScreen extends StatefulWidget {
@@ -38,7 +38,7 @@ class _CrearEspacioScreenState extends State<CrearEspacioScreen> {
   }
 
   Future<void> _loadEspacios() async {
-    final daoFactory = Provider.of<MockDAOFactory>(context, listen: false);
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
     final espacioDAO = daoFactory.createEspacioDAO();
     final espacios = await espacioDAO.obtenerTodos();
 

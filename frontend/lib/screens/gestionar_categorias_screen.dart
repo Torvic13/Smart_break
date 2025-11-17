@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../models/categoria_espacio.dart';
 import '../models/espacio.dart';
 import '../dao/dao_factory.dart';
-import '../dao/mock_dao_factory.dart';
 import '../dao/categoria_dao.dart';
 import '../dao/espacio_dao.dart';
 import 'detalle_espacio_categorias_screen.dart';
@@ -19,37 +20,46 @@ class GestionarCategoriasScreen extends StatefulWidget {
 }
 
 class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
-  final DAOFactory _daoFactory = MockDAOFactory();
-  late final CategoriaDAO _categoriaDAO;
-  late final EspacioDAO _espacioDAO;
+  late CategoriaDAO _categoriaDAO;
+  late EspacioDAO _espacioDAO;
+  bool _daoInicializado = false;
 
   // Mapa para almacenar categorías por tipo
   Map<TipoCategoria, List<CategoriaEspacio>> _categoriasPorTipo = {};
-  
+
   // Mapa para almacenar controladores de texto por tipo
-  Map<TipoCategoria, TextEditingController> _controllers = {};
-  
+  final Map<TipoCategoria, TextEditingController> _controllers = {};
+
   // Para el flujo de asignación por espacio
   List<Espacio> _espacios = [];
   Espacio? _espacioSeleccionado;
   Set<String> _categoriasSeleccionadas = {};
   bool _dropdownInteractuado = false;
-  
+
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _categoriaDAO = _daoFactory.createCategoriaDAO();
-    _espacioDAO = _daoFactory.createEspacioDAO();
-    
     // Inicializar controladores para cada tipo de categoría
     for (var tipo in TipoCategoria.values) {
       _controllers[tipo] = TextEditingController();
     }
-    
-    _cargarDatos();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_daoInicializado) {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      _categoriaDAO = daoFactory.createCategoriaDAO();
+      _espacioDAO = daoFactory.createEspacioDAO();
+      _daoInicializado = true;
+
+      _cargarDatos();
+    }
   }
 
   @override
@@ -70,8 +80,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
 
     try {
       // Cargar categorías para cada tipo
-      Map<TipoCategoria, List<CategoriaEspacio>> tempMap = {};
-      
+      final Map<TipoCategoria, List<CategoriaEspacio>> tempMap = {};
+
       for (var tipo in TipoCategoria.values) {
         final categorias = await _categoriaDAO.obtenerPorTipo(tipo);
         tempMap[tipo] = categorias;
@@ -118,10 +128,9 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
 
     // Cargar categorías actuales del espacio de forma segura
     setState(() {
-      _categoriasSeleccionadas = {};
-      for (var id in _espacioSeleccionado!.categoriaIds) {
-        _categoriasSeleccionadas.add(id);
-      }
+      _categoriasSeleccionadas = {
+        for (var id in _espacioSeleccionado!.categoriaIds) id
+      };
     });
 
     final resultado = await showDialog<bool>(
@@ -129,7 +138,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 Container(
@@ -145,7 +155,7 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                const Expanded(
                   child: Text(
                     'Asignar Categorías',
                     style: TextStyle(
@@ -181,13 +191,16 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                   // Mostrar categorías agrupadas por tipo
                   ...TipoCategoria.values.map((tipo) {
                     final categoriasDelTipo = _categoriasPorTipo[tipo] ?? [];
-                    if (categoriasDelTipo.isEmpty) return const SizedBox.shrink();
+                    if (categoriasDelTipo.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(top: 12, bottom: 8),
+                          padding:
+                              const EdgeInsets.only(top: 12, bottom: 8),
                           child: Text(
                             tipo.displayName,
                             style: const TextStyle(
@@ -201,26 +214,34 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                           spacing: 8,
                           runSpacing: 8,
                           children: categoriasDelTipo.map((categoria) {
-                            final isSelected = _categoriasSeleccionadas.contains(categoria.idCategoria);
+                            final isSelected = _categoriasSeleccionadas
+                                .contains(categoria.idCategoria);
                             return FilterChip(
                               label: Text(categoria.nombre),
                               selected: isSelected,
                               onSelected: (selected) {
                                 setStateDialog(() {
                                   if (selected) {
-                                    _categoriasSeleccionadas.add(categoria.idCategoria);
+                                    _categoriasSeleccionadas
+                                        .add(categoria.idCategoria);
                                   } else {
-                                    _categoriasSeleccionadas.remove(categoria.idCategoria);
+                                    _categoriasSeleccionadas
+                                        .remove(categoria.idCategoria);
                                   }
                                 });
                               },
-                              selectedColor: const Color(0xFFF97316).withOpacity(0.2),
+                              selectedColor:
+                                  const Color(0xFFF97316).withOpacity(0.2),
                               checkmarkColor: const Color(0xFFF97316),
                               backgroundColor: Colors.grey[100],
                               labelStyle: TextStyle(
                                 fontSize: 13,
-                                color: isSelected ? const Color(0xFFF97316) : Colors.black87,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                color: isSelected
+                                    ? const Color(0xFFF97316)
+                                    : Colors.black87,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                             );
                           }).toList(),
@@ -279,24 +300,25 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
       );
 
       await _espacioDAO.actualizar(espacioActualizado);
-      
+
       setState(() {
         _espacioSeleccionado = espacioActualizado;
-        // Actualizar en la lista local
-        final index = _espacios.indexWhere((e) => e.idEspacio == espacioActualizado.idEspacio);
+        final index = _espacios.indexWhere(
+          (e) => e.idEspacio == espacioActualizado.idEspacio,
+        );
         if (index != -1) {
           _espacios[index] = espacioActualizado;
         }
       });
 
       _mostrarSnackBar('Categorías asignadas correctamente');
-      
-      // Navegar a la pantalla de detalle del espacio
+
       if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DetalleEspacioCategoriasScreen(espacio: espacioActualizado),
+            builder: (context) =>
+                DetalleEspacioCategoriasScreen(espacio: espacioActualizado),
           ),
         );
       }
@@ -308,10 +330,10 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Fondo gris claro
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text('Gestionar Categorías'),
-        backgroundColor: const Color(0xFFF97316), // Color naranja
+        backgroundColor: const Color(0xFFF97316),
         foregroundColor: Colors.white,
       ),
       body: Builder(
@@ -328,7 +350,9 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF97316)),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFF97316),
+                      ),
                       strokeWidth: 3,
                     ),
                   ),
@@ -434,7 +458,6 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
             );
           }
 
-          // Main content
           return RefreshIndicator(
             color: const Color(0xFFF97316),
             backgroundColor: Colors.white,
@@ -459,7 +482,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFF97316).withOpacity(0.3),
+                            color:
+                                const Color(0xFFF97316).withOpacity(0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -520,41 +544,40 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                             child: DropdownButtonFormField<Espacio?>(
                               value: _espacioSeleccionado,
                               decoration: InputDecoration(
-                              hintText: 'Selecciona un espacio',
-                              hintStyle: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.location_on_outlined,
-                                color: Color(0xFFF97316),
-                                size: 22,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 14,
-                              ),
-                            ),
-
-                              items: _espacios.map((espacio) {
-                              return DropdownMenuItem<Espacio?>(
-                                value: espacio,
-                                child: Text(
-                                  espacio.nombre,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                hintText: 'Selecciona un espacio',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
                                 ),
-                              );
-                            }).toList(),
-
+                                prefixIcon: const Icon(
+                                  Icons.location_on_outlined,
+                                  color: Color(0xFFF97316),
+                                  size: 22,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                              ),
+                              items: _espacios.map((espacio) {
+                                return DropdownMenuItem<Espacio?>(
+                                  value: espacio,
+                                  child: Text(
+                                    espacio.nombre,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                               onChanged: (espacio) {
                                 setState(() {
                                   _dropdownInteractuado = true;
@@ -596,7 +619,6 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                         ],
                       ),
                     ),
-                    // Botones fuera del card
                     const SizedBox(height: 10),
                     // Botón Asignar Categorías
                     SizedBox(
@@ -618,7 +640,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: Colors.grey[300],
                           disabledForegroundColor: Colors.grey[500],
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -636,7 +659,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => DetalleEspacioCategoriasScreen(
+                                    builder: (context) =>
+                                        DetalleEspacioCategoriasScreen(
                                       espacio: _espacioSeleccionado!,
                                     ),
                                   ),
@@ -656,7 +680,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: Colors.grey[300],
                           disabledForegroundColor: Colors.grey[500],
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -664,20 +689,19 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                         ),
                       ),
                     ),
-                    // Botón para crear más categorías
                     const SizedBox(height: 10),
-                    Container(
+                    // Botón para crear más categorías
+                    SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          // Navegar a la pantalla de administración de categorías
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AdminCategoriasScreen(),
+                              builder: (context) =>
+                                  const AdminCategoriasScreen(),
                             ),
                           );
-                          // Recargar categorías al regresar
                           _cargarCategorias();
                         },
                         icon: const Icon(Icons.settings, size: 18),
@@ -691,7 +715,8 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),

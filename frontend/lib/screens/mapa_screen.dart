@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../components/top_navbar.dart';
 import '../components/bottom_navbar.dart'; // 👈 barra reusable con transparencia
-import '../dao/mock_dao_factory.dart';
+import '../dao/dao_factory.dart';
 import '../dao/auth_service.dart';
 import '../models/espacio.dart';
 import '../models/estudiante.dart';
@@ -43,7 +43,7 @@ class _MapaScreenState extends State<MapaScreen> {
   }
 
   Future<void> _loadData() async {
-    final daoFactory = Provider.of<MockDAOFactory>(context, listen: false);
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
     final espacioDAO = daoFactory.createEspacioDAO();
     final categoriaDAO = daoFactory.createCategoriaDAO();
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../dao/mock_dao_factory.dart';
+import '../dao/dao_factory.dart';
 import '../dao/auth_service.dart';
 import '../models/administrador_sistema.dart';  // 👈 importa el modelo admin
 import 'mapa_screen.dart';
@@ -29,63 +29,67 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
 
-    await Future.delayed(const Duration(seconds: 1));
-
-    final daoFactory = Provider.of<MockDAOFactory>(context, listen: false);
+  try {
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
     final authDao = daoFactory.createAuthDAO();
-    final usuarioDao = daoFactory.createUsuarioDAO();
-    
-    final bool loginSuccess = await authDao.iniciarSesion(
+
+    final usuario = await authDao.iniciarSesion(
       email: _emailController.text,
       pass: _passwordController.text,
     );
 
-    if (loginSuccess && mounted) {
-      // ✅ Obtener el usuario completo
-      final usuario = await usuarioDao.obtenerPorEmail(_emailController.text);
+    if (!mounted) return;
 
-      if (usuario != null) {
-        AuthService().setUsuario(usuario);
-
-        // ✅ Si es administrador, ir al panel admin
-        if (usuario is AdministradorSistema) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminProfileScreen(),
-            ),
-            (route) => false,
-          );
-        } else {
-          // ✅ Si no es admin, ir al mapa
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const MapaScreen(),
-            ),
-            (route) => false,
-          );
-        }
-      } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Error al obtener los datos del usuario.';
-        });
-      }
-    } else {
+    if (usuario == null) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Credenciales inválidas';
       });
+      return;
+    }
+
+    // Guardamos usuario en AuthService (y eventualmente el token)
+    AuthService().setUsuario(usuario);
+
+    // Navegación según tipo
+    if (usuario is AdministradorSistema) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AdminProfileScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MapaScreen(),
+        ),
+        (route) => false,
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() {
+      _errorMessage = 'Error al iniciar sesión: ${e.toString()}';
+    });
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

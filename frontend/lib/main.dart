@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dao/mock_dao_factory.dart';
+
+import 'dao/dao_factory.dart';
+import 'dao/http_dao_factory.dart';        // 👈 NUEVO: factory que usa el backend
 import 'screens/welcome_screen.dart';
 import 'screens/mapa_screen.dart';
 import 'screens/profile_screen.dart';
-import 'package:smart_break/dao/auth_service.dart';
-
+import 'dao/auth_service.dart';           // ya lo tenías como package, lo dejo relativo
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +21,14 @@ class SmartBreakApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<MockDAOFactory>(
-          create: (_) => MockDAOFactory(),
+        // 👇 AuthService como ChangeNotifier (opcional pero útil)
+        ChangeNotifierProvider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+
+        // 👇 Aquí elegimos la implementación REAL de los DAOs
+        Provider<DAOFactory>(
+          create: (_) => HttpDAOFactory(), // Usa backend para AuthDAO
         ),
       ],
       child: MaterialApp(
@@ -64,7 +71,6 @@ class SmartBreakApp extends StatelessWidget {
           ),
         ),
 
-        // 👇 Solo rutas reales, sin pantallas falsas
         initialRoute: '/',
         routes: {
           '/': (context) => const WelcomeScreen(),

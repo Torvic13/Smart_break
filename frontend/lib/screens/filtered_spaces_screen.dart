@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../models/espacio.dart';
 import '../models/categoria_espacio.dart';
-import '../dao/mock_dao_factory.dart';
+import '../dao/dao_factory.dart';
 import '../dao/espacio_dao.dart';
 import '../dao/categoria_dao.dart';
 
@@ -13,30 +15,39 @@ class FilteredSpacesScreen extends StatefulWidget {
 }
 
 class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
-  final EspacioDAO _espacioDao = MockDAOFactory().createEspacioDAO();
-  final CategoriaDAO _categoriaDao = MockDAOFactory().createCategoriaDAO();
-  
+  late EspacioDAO _espacioDao;
+  late CategoriaDAO _categoriaDao;
+  bool _daoInicializado = false;
+
   List<Espacio> _espacios = [];
   List<CategoriaEspacio> _categorias = [];
   Set<String> _categoriasSeleccionadas = {};
 
   @override
-  void initState() {
-    super.initState();
-    _cargarDatos();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_daoInicializado) {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      _espacioDao = daoFactory.createEspacioDAO();
+      _categoriaDao = daoFactory.createCategoriaDAO();
+      _daoInicializado = true;
+
+      _cargarDatos();
+    }
   }
 
   Future<void> _cargarDatos() async {
     try {
       final espacios = await _espacioDao.obtenerTodos();
       final categorias = await _categoriaDao.obtenerTodas();
-      
+
       setState(() {
         _espacios = espacios;
         _categorias = categorias;
       });
     } catch (e) {
-      // Manejo de errores
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al cargar los datos: $e')),
       );
@@ -51,7 +62,7 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
     return _espacios.where((espacio) {
       // Verifica si el espacio tiene al menos una de las categorías seleccionadas
       return espacio.categoriaIds.any(
-        (categoriaId) => _categoriasSeleccionadas.contains(categoriaId)
+        (categoriaId) => _categoriasSeleccionadas.contains(categoriaId),
       );
     }).toList();
   }
@@ -102,7 +113,8 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
                   spacing: 8.0,
                   runSpacing: 4.0,
                   children: _categorias.map((categoria) {
-                    final isSelected = _categoriasSeleccionadas.contains(categoria.idCategoria);
+                    final isSelected =
+                        _categoriasSeleccionadas.contains(categoria.idCategoria);
                     return FilterChip(
                       selected: isSelected,
                       label: Text(categoria.nombre),
@@ -126,13 +138,15 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
                     .where((c) => espacio.categoriaIds.contains(c.idCategoria))
                     .map((c) => c.nombre)
                     .join(', ');
-                
+
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   child: ListTile(
                     title: Text(espacio.nombre),
                     subtitle: Text(categoriasEspacio),
-                    trailing: Icon(_getIconForOcupacion(espacio.nivelOcupacion)),
+                    trailing:
+                        Icon(_getIconForOcupacion(espacio.nivelOcupacion)),
                     onTap: () {
                       // Navegar al detalle del espacio si es necesario
                     },
