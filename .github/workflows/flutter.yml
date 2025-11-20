@@ -17,7 +17,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Install Flutter
@@ -32,22 +32,25 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
-      - name: Build APK (Release)
+      - name: Build APK
         working-directory: frontend
         run: flutter build apk --release --no-tree-shake-icons
 
-      - name: Debug – List build folders
+      - name: Find APK path
+        id: find_apk
         working-directory: frontend
         run: |
-          echo "=== PROJECT ROOT ==="
-          ls -R .
-          echo "=== BUILD FOLDER ==="
-          ls -R build || true
-          echo "=== OUTPUTS ==="
-          ls -R build/app/outputs || true
+          echo "== SEARCHING FOR APK =="
+          APK_PATH=$(find build -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No APK found!"
+            exit 1
+          fi
+          echo "APK found at: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
-          path: frontend/build/app/outputs/flutter-apk/app-release.apk
+          path: frontend/${{ steps.find_apk.outputs.apk_path }}
