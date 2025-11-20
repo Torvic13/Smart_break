@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: frontend
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -17,8 +21,8 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -29,29 +33,16 @@ jobs:
         run: flutter doctor -v
 
       - name: Install dependencies
-        working-directory: frontend
         run: flutter pub get
 
-      - name: Build APK (Release)
-        working-directory: frontend
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Build APK
+        run: flutter build apk --release
 
-      - name: DEBUG – LIST ALL FILES
-        working-directory: frontend
-        run: |
-          echo "=== SHOWING FULL BUILD TREE ==="
-          find build -type f -maxdepth 6 || true
+      - name: Debug – Show build folder
+        run: ls -R build/app/outputs || true
 
-      - name: Try to Locate APK Automatically
-        id: find_apk
-        working-directory: frontend
-        run: |
-          APK_PATH=$(find build -name "*.apk" -type f | head -n 1)
-          echo "Found APK at: $APK_PATH"
-          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: smartbreak-apk
-          path: ${{ steps.find_apk.outputs.apk_path }}
+          name: app-release
+          path: frontend/build/app/outputs/flutter-apk/app-release.apk
