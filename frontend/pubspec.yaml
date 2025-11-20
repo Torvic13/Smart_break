@@ -22,10 +22,13 @@ dependencies:
   
   # UI dependencies
   flutter_rating_bar: ^4.0.1
-  sqflite: ^2.4.2
+
+  # COMPATIBLE VERSION
+  sqflite: ^2.3.3+1
+  
   path: ^1.8.3
 
-  # VERSION COMPATIBLE con Dart 3.4.0
+  # COMPATIBLE VERSION
   flutter_map: ^7.0.0
 
   shared_preferences: ^2.2.2
