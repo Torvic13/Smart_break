@@ -19,14 +19,14 @@ jobs:
         with:
           flutter-version: '3.9.2'
 
-      - name: Go to frontend folder
-        run: cd frontend
-
       - name: Install dependencies
-        run: cd frontend && flutter pub get
+        working-directory: ./frontend
+        run: flutter pub get
 
       - name: Analyze code
-        run: cd frontend && flutter analyze
+        working-directory: ./frontend
+        run: flutter analyze
 
       - name: Build APK
-        run: cd frontend && flutter build apk --debug
+        working-directory: ./frontend
+        run: flutter build apk --debug
