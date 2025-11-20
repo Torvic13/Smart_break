@@ -2,9 +2,9 @@ name: Flutter CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
@@ -14,10 +14,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set up Java (required for Android builds)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.9.2'
+
+      - name: Enable Flutter web & android
+        run: flutter config --enable-web --enable-android
+
+      - name: Verify Flutter installation
+        run: flutter doctor -v
 
       - name: Install dependencies
         working-directory: ./frontend
@@ -27,6 +39,6 @@ jobs:
         working-directory: ./frontend
         run: flutter analyze
 
-      - name: Build APK
+      - name: Build APK (Release mode)
         working-directory: ./frontend
-        run: flutter build apk --debug
+        run: flutter build apk --release
