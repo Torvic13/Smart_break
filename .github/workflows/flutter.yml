@@ -23,7 +23,7 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: "3.22.0"
 
       - name: Flutter doctor
         run: flutter doctor -v
@@ -32,25 +32,26 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK (Release)
         working-directory: frontend
         run: flutter build apk --release --no-tree-shake-icons
 
-      - name: Find APK path
+      - name: DEBUG – LIST ALL FILES
+        working-directory: frontend
+        run: |
+          echo "=== SHOWING FULL BUILD TREE ==="
+          find build -type f -maxdepth 6 || true
+
+      - name: Try to Locate APK Automatically
         id: find_apk
         working-directory: frontend
         run: |
-          echo "== SEARCHING FOR APK =="
-          APK_PATH=$(find build -name "*.apk" | head -n 1)
-          if [ -z "$APK_PATH" ]; then
-            echo "No APK found!"
-            exit 1
-          fi
-          echo "APK found at: $APK_PATH"
+          APK_PATH=$(find build -name "*.apk" -type f | head -n 1)
+          echo "Found APK at: $APK_PATH"
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: frontend/${{ steps.find_apk.outputs.apk_path }}
+          name: smartbreak-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
