@@ -211,7 +211,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: _getOcupacionColor(widget.espacio.nivelOcupacion)
-                            .withValues(alpha: 0.1),
+                            .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _getOcupacionColor(widget.espacio.nivelOcupacion),
