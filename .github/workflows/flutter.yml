@@ -10,10 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: frontend
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,28 +17,32 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
-          java-version: "17"
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"
+          flutter-version: '3.22.0'
 
       - name: Flutter doctor
         run: flutter doctor -v
 
       - name: Install dependencies
+        working-directory: frontend
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK (release)
+        working-directory: frontend
         run: flutter build apk --release
 
-      - name: Debug – Show build folder
-        run: ls -R build/app/outputs || true
+      - name: Find APK path
+        run: |
+          echo "=== BUILD CONTENTS ==="
+          ls -R frontend/build || true
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-release-apk
           path: frontend/build/app/outputs/flutter-apk/app-release.apk
