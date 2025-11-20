@@ -23,21 +23,21 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.22.0"
+          flutter-version: 3.22.0
 
       - name: Flutter doctor
         run: flutter doctor -v
 
       - name: Install dependencies
-        working-directory: frontend
+        working-directory: ./frontend
         run: flutter pub get
 
-      - name: Build APK
-        working-directory: frontend
+      - name: Build APK (Release)
+        working-directory: ./frontend
         run: flutter build apk --release --no-tree-shake-icons
 
       - name: Debug – List build folder
-        working-directory: frontend
+        working-directory: ./frontend
         run: |
           echo "=== ROOT ==="
           ls -R .
@@ -49,5 +49,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: frontend/build/app/outputs/flutter-apk/app-release.apk
+          name: app-release
+          path: |
+            frontend/build/**/outputs/**/*.apk
