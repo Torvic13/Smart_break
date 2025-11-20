@@ -13,15 +13,21 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   
+  # Map and location dependencies
   google_maps_flutter: ^2.5.0
   geolocator: ^10.1.0
   
+  # State management
   provider: ^6.1.1
   
+  # UI dependencies
   flutter_rating_bar: ^4.0.1
   sqflite: ^2.4.2
   path: ^1.8.3
-  flutter_map: ^8.2.2
+
+  # VERSION COMPATIBLE con Dart 3.4.0
+  flutter_map: ^7.0.0
+
   shared_preferences: ^2.2.2
 
 dev_dependencies:
