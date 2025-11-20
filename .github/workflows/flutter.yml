@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
       - name: Install Flutter
@@ -32,14 +32,22 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK (Release)
         working-directory: frontend
         run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Debug – List build folders
+        working-directory: frontend
+        run: |
+          echo "=== PROJECT ROOT ==="
+          ls -R .
+          echo "=== BUILD FOLDER ==="
+          ls -R build || true
+          echo "=== OUTPUTS ==="
+          ls -R build/app/outputs || true
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: |
-            frontend/build/app/outputs/apk/release/app-release.apk
-            frontend/build/app/outputs/flutter-apk/app-release.apk
+          name: app-release-apk
+          path: frontend/build/app/outputs/flutter-apk/app-release.apk
