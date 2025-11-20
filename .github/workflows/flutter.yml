@@ -52,4 +52,7 @@ jobs:
           ls -R build/app/outputs || true
 
       - name: Upload APK artifact
-        uses: a
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: frontend/build/app/outputs/flutter-apk/app-release.apk
