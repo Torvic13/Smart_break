@@ -1,17 +1,20 @@
-import 'package:smart_break/models/espacio.dart';
-import 'package:smart_break/models/ubicacion.dart';
 import 'usuario.dart';
 
 class AdministradorSistema extends Usuario {
   AdministradorSistema({
-    required super.idUsuario,
-    required super.email,
-    required super.passwordHash,
-    required super.fechaCreacion,
-    required super.estado,
+    required String idUsuario,
+    required String email,
+    required String passwordHash,
+    required DateTime fechaCreacion,
+    required EstadoUsuario estado,
   }) : super(
-         rol: RolUsuario.admin, // 👈 se asigna directamente el rol admin
-       );
+          idUsuario: idUsuario,
+          email: email,
+          passwordHash: passwordHash,
+          fechaCreacion: fechaCreacion,
+          estado: estado,
+          rol: RolUsuario.admin,
+        );
 
   void crearEspacio(Map<String, dynamic> datosEspacio) {
     // Implementación futura
@@ -36,7 +39,7 @@ class AdministradorSistema extends Usuario {
   @override
   Map<String, dynamic> toJson() {
     final json = super.toJson();
-    json['rol'] = RolUsuario.admin.name; // 👈 guarda como 'admin'
+    json['rol'] = RolUsuario.admin.name;
     return json;
   }
 
@@ -50,7 +53,6 @@ class AdministradorSistema extends Usuario {
         (e) => e.name == json['estado'],
         orElse: () => EstadoUsuario.activo,
       ),
-      // El rol se asigna internamente en el constructor
     );
   }
 }

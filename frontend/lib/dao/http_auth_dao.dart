@@ -1,122 +1,148 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'auth_dao.dart';
 import '../models/usuario.dart';
 import '../models/estudiante.dart';
 import '../models/administrador_sistema.dart';
-import 'auth_dao.dart';
 
 class HttpAuthDAO implements AuthDAO {
   final String baseUrl;
+  String? _lastToken;
 
-  HttpAuthDAO({this.baseUrl = 'http://10.0.2.2:4000/api/v1'});
+  HttpAuthDAO({required this.baseUrl});
+
+  @override
+  String? getToken() => _lastToken;
+
+  // Función para convertir string a EstadoUsuario
+  EstadoUsuario _parseEstadoUsuario(String estadoStr) {
+    switch (estadoStr.toLowerCase()) {
+      case 'activo':
+        return EstadoUsuario.activo;
+      case 'inactivo':
+        return EstadoUsuario.inactivo;
+      case 'suspendido':
+        return EstadoUsuario.suspendido;
+      default:
+        return EstadoUsuario.activo;
+    }
+  }
+
+  // Función para convertir string a RolUsuario
+  RolUsuario _parseRolUsuario(String rolStr) {
+    switch (rolStr.toLowerCase()) {
+      case 'admin':
+      case 'administrador':
+        return RolUsuario.admin;
+      case 'estudiante':
+        return RolUsuario.estudiante;
+      default:
+        return RolUsuario.estudiante;
+    }
+  }
 
   @override
   Future<Usuario?> iniciarSesion({
     required String email,
     required String pass,
   }) async {
-    final uri = Uri.parse('$baseUrl/auth/login');
+    try {
+      final url = '$baseUrl/api/v1/auth/login';
+      print('🔐 [DEBUG] URL de login: $url');
+      print('🔐 [DEBUG] Email: $email');
 
-    final resp = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': pass,
-      }),
-    );
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'password': pass,
+        }),
+      );
 
-    if (resp.statusCode == 200) {
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final usuarioJson = data['usuario'] as Map<String, dynamic>;
+      print('🔐 [DEBUG] Respuesta del servidor: ${response.statusCode}');
+      print('🔐 [DEBUG] Body de respuesta: ${response.body}');
 
-      // Mapeamos según el rol que viene del backend ("admin" / "estudiante")
-      final rolStr = usuarioJson['rol'] as String? ?? 'estudiante';
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        // 👇 GUARDAR EL TOKEN DEL BACKEND
+        _lastToken = data['accessToken'];
+        print('🔐 [DEBUG] Token guardado: ${_lastToken?.substring(0, 20)}...');
 
-      if (rolStr == 'admin') {
-        return AdministradorSistema(
-          idUsuario: usuarioJson['idUsuario'],
-          email: usuarioJson['email'],
-          passwordHash: '', // el backend no envía hash, no lo necesitamos aquí
-          fechaCreacion: DateTime.parse(usuarioJson['fechaCreacion']),
-          estado: _estadoFromString(usuarioJson['estado']),
-        );
+        final Map<String, dynamic> usuarioData = data['usuario'];
+        
+        // Parsear estado y rol
+        final estado = _parseEstadoUsuario(usuarioData['estado']?.toString() ?? 'activo');
+        final rol = _parseRolUsuario(usuarioData['rol']?.toString() ?? 'estudiante');
+        
+        // Crear el usuario según el rol
+        if (rol == RolUsuario.estudiante) {
+          return Estudiante(
+            idUsuario: usuarioData['idUsuario'] ?? '',
+            email: usuarioData['email'] ?? '',
+            passwordHash: '', // No guardamos el hash
+            fechaCreacion: DateTime.parse(usuarioData['fechaCreacion'] ?? DateTime.now().toString()),
+            estado: estado,
+            codigoAlumno: usuarioData['codigoAlumno'] ?? '',
+            nombreCompleto: usuarioData['nombreCompleto'] ?? '',
+            ubicacionCompartida: usuarioData['ubicacionCompartida'] ?? false,
+            carrera: usuarioData['carrera'] ?? '',
+          );
+        } else if (rol == RolUsuario.admin) {
+          return AdministradorSistema(
+            idUsuario: usuarioData['idUsuario'] ?? '',
+            email: usuarioData['email'] ?? '',
+            passwordHash: '',
+            fechaCreacion: DateTime.parse(usuarioData['fechaCreacion'] ?? DateTime.now().toString()),
+            estado: estado,
+          );
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Credenciales inválidas');
       } else {
-        return Estudiante(
-          idUsuario: usuarioJson['idUsuario'],
-          email: usuarioJson['email'],
-          passwordHash: '',
-          fechaCreacion: DateTime.parse(usuarioJson['fechaCreacion']),
-          estado: _estadoFromString(usuarioJson['estado']),
-          codigoAlumno: usuarioJson['codigoAlumno'] ?? '',
-          nombreCompleto: usuarioJson['nombreCompleto'] ?? '',
-          ubicacionCompartida:
-              usuarioJson['ubicacionCompartida'] as bool? ?? false,
-          carrera: usuarioJson['carrera'] ?? 'No especificada',
-        );
+        throw Exception('Error del servidor: ${response.statusCode}');
       }
+    } catch (e) {
+      print('🔐 [DEBUG] Error en login: $e');
+      rethrow;
     }
-
-    if (resp.statusCode == 400 || resp.statusCode == 401) {
-      // credenciales inválidas
-      return null;
-    }
-
-    throw Exception(
-        'Error al iniciar sesión: [${resp.statusCode}] ${resp.body}');
+    return null;
   }
 
   @override
   Future<Usuario> crearCuenta(Map<String, dynamic> datos) async {
-    final uri = Uri.parse('$baseUrl/usuarios');
-
-    final body = {
-      'email': datos['email'],
-      'password': datos['password'],
-      'rol': 'estudiante',
-      'codigoAlumno': datos['codigoAlumno'],
-      'nombreCompleto': datos['nombreCompleto'],
-      'carrera': datos['carrera'],
-    };
-
-    final resp = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-
-    if (resp.statusCode == 201) {
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final usuarioJson = data['usuario'] as Map<String, dynamic>;
-
-      return Estudiante(
-        idUsuario: usuarioJson['idUsuario'],
-        email: usuarioJson['email'],
-        passwordHash: '',
-        fechaCreacion: DateTime.parse(usuarioJson['fechaCreacion']),
-        estado: _estadoFromString(usuarioJson['estado']),
-        codigoAlumno: usuarioJson['codigoAlumno'] ?? '',
-        nombreCompleto: usuarioJson['nombreCompleto'] ?? '',
-        ubicacionCompartida:
-            usuarioJson['ubicacionCompartida'] as bool? ?? false,
-        carrera: usuarioJson['carrera'] ?? 'No especificada',
+    try {
+      final url = '$baseUrl/api/v1/auth/register';
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(datos),
       );
-    }
 
-    throw Exception(
-        'Error al registrar usuario: [${resp.statusCode}] ${resp.body}');
-  }
-
-  EstadoUsuario _estadoFromString(String? value) {
-    switch (value) {
-      case 'inactivo':
-        return EstadoUsuario.inactivo;
-      case 'suspendido':
-        return EstadoUsuario.suspendido;
-      case 'activo':
-      default:
-        return EstadoUsuario.activo;
+      if (response.statusCode == 201) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        _lastToken = data['accessToken'];
+        
+        final Map<String, dynamic> usuarioData = data['usuario'];
+        
+        return Estudiante(
+          idUsuario: usuarioData['idUsuario'] ?? '',
+          email: usuarioData['email'] ?? '',
+          passwordHash: '',
+          fechaCreacion: DateTime.parse(usuarioData['fechaCreacion'] ?? DateTime.now().toString()),
+          estado: _parseEstadoUsuario(usuarioData['estado']?.toString() ?? 'activo'),
+          codigoAlumno: usuarioData['codigoAlumno'] ?? '',
+          nombreCompleto: usuarioData['nombreCompleto'] ?? '',
+          ubicacionCompartida: usuarioData['ubicacionCompartida'] ?? false,
+          carrera: usuarioData['carrera'] ?? '',
+        );
+      } else {
+        throw Exception('Error al crear cuenta: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error en registro: $e');
     }
   }
 }

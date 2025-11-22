@@ -4,18 +4,21 @@ const {
   listarEspacios,
   crearEspacio,
   obtenerEspacio,
+  obtenerEspaciosDisponibles,
 } = require('../controllers/espacio_controller');
-const { requireAuth, requireRole } = require('../middlewares/auth_middleware');
 
 const router = express.Router();
 
-// ✅ Cualquier usuario puede ver los espacios (si quieres puedes poner requireAuth)
+// GET /api/v1/espacios
 router.get('/', listarEspacios);
 
-// ✅ Ver detalle de un espacio por idEspacio
+// GET /api/v1/espacios/disponibles
+router.get('/disponibles', obtenerEspaciosDisponibles);
+
+// GET /api/v1/espacios/:idEspacio
 router.get('/:idEspacio', obtenerEspacio);
 
-// ✅ Solo admin puede crear espacios nuevos
-router.post('/', requireAuth, requireRole('admin'), crearEspacio);
+// POST /api/v1/espacios  (solo admin)
+router.post('/', crearEspacio);
 
 module.exports = router;

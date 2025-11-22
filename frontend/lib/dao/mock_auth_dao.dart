@@ -6,6 +6,9 @@ import 'mock_usuario_dao.dart';
 class MockAuthDAO implements AuthDAO {
   final MockUsuarioDAO _usuarioDAO;
 
+  // Token en memoria (solo para pruebas)
+  String? _token;
+
   MockAuthDAO(this._usuarioDAO);
 
   @override
@@ -15,7 +18,10 @@ class MockAuthDAO implements AuthDAO {
   }) async {
     try {
       final usuario = await _usuarioDAO.obtenerPorEmail(email);
+
       if (usuario != null && usuario.passwordHash == pass) {
+        // Generar token ficticio para ambiente mock
+        _token = 'mock-token-${usuario.idUsuario}';
         return usuario;
       }
       return null;
@@ -37,7 +43,18 @@ class MockAuthDAO implements AuthDAO {
       ubicacionCompartida: false,
       carrera: datos['carrera'] as String,
     );
+
     await _usuarioDAO.crear(nuevoUsuario);
+
+    // Generar token ficticio
+    _token = 'mock-token-${nuevoUsuario.idUsuario}';
+
     return nuevoUsuario;
+  }
+
+  // ⭐ NUEVO: implementación obligatoria
+  @override
+  String? getToken() {
+    return _token;
   }
 }

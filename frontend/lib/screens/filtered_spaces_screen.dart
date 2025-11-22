@@ -5,6 +5,7 @@ import '../models/espacio.dart';
 import '../models/categoria_espacio.dart';
 import '../dao/dao_factory.dart';
 import '../dao/espacio_dao.dart';
+import '../models/nivel_ocupacion.dart';
 import '../dao/categoria_dao.dart';
 
 class FilteredSpacesScreen extends StatefulWidget {
@@ -22,6 +23,25 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
   List<Espacio> _espacios = [];
   List<CategoriaEspacio> _categorias = [];
   Set<String> _categoriasSeleccionadas = {};
+
+  // Función para convertir String a NivelOcupacion
+  NivelOcupacion _stringToNivelOcupacion(String nivel) {
+    switch (nivel.toLowerCase()) {
+      case 'vacío':
+      case 'vacio':
+        return NivelOcupacion.vacio;
+      case 'bajo':
+        return NivelOcupacion.bajo;
+      case 'medio':
+        return NivelOcupacion.medio;
+      case 'alto':
+        return NivelOcupacion.alto;
+      case 'lleno':
+        return NivelOcupacion.lleno;
+      default:
+        return NivelOcupacion.vacio;
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -134,6 +154,7 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
               itemCount: espaciosFiltrados.length,
               itemBuilder: (context, index) {
                 final espacio = espaciosFiltrados[index];
+                final nivelOcupacion = _stringToNivelOcupacion(espacio.nivelOcupacion);
                 final categoriasEspacio = _categorias
                     .where((c) => espacio.categoriaIds.contains(c.idCategoria))
                     .map((c) => c.nombre)
@@ -144,9 +165,15 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
                       const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   child: ListTile(
                     title: Text(espacio.nombre),
-                    subtitle: Text(categoriasEspacio),
-                    trailing:
-                        Icon(_getIconForOcupacion(espacio.nivelOcupacion)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Tipo: ${espacio.tipo}'),
+                        Text('Categorías: $categoriasEspacio'),
+                        Text('Ocupación: ${_getOcupacionText(nivelOcupacion)}'),
+                      ],
+                    ),
+                    trailing: Icon(_getIconForOcupacion(nivelOcupacion)),
                     onTap: () {
                       // Navegar al detalle del espacio si es necesario
                     },
@@ -172,6 +199,21 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
         return Icons.brightness_4;
       case NivelOcupacion.lleno:
         return Icons.brightness_5;
+    }
+  }
+
+  String _getOcupacionText(NivelOcupacion nivel) {
+    switch (nivel) {
+      case NivelOcupacion.vacio:
+        return 'Vacío';
+      case NivelOcupacion.bajo:
+        return 'Bajo';
+      case NivelOcupacion.medio:
+        return 'Medio';
+      case NivelOcupacion.alto:
+        return 'Alto';
+      case NivelOcupacion.lleno:
+        return 'Lleno';
     }
   }
 }

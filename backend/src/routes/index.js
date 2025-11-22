@@ -1,6 +1,7 @@
-const { Router } = require('express');
-const router = Router();
+const express = require('express');
+const router = express.Router();
 
+// Ruta de health check
 router.get('/', (_req, res) => {
   res.json({ message: 'Bienvenido a la API SmartBreak 🧠' });
 });

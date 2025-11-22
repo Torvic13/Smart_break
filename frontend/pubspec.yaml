@@ -10,12 +10,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.1.0
 
   cupertino_icons: ^1.0.8
   
-  # Map and location dependencies
-  google_maps_flutter: ^2.5.0
-  geolocator: ^10.1.0
+  # Map and location dependencies - ACTUALIZADAS
+  google_maps_flutter: ^2.14.0
+  geolocator: ^11.0.1
   
   # State management
   provider: ^6.1.1
@@ -23,15 +24,16 @@ dependencies:
   # UI dependencies
   flutter_rating_bar: ^4.0.1
 
-  # COMPATIBLE VERSION
-  sqflite: ^2.3.3+1
+  # Database - ACTUALIZADA
+  sqflite: ^2.3.0
   
   path: ^1.8.3
 
-  # COMPATIBLE VERSION
-  flutter_map: ^7.0.0
+  # Maps - ACTUALIZADA
+  flutter_map: ^8.0.0
 
-  shared_preferences: ^2.2.2
+  # Storage - ACTUALIZADA
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

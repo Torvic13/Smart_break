@@ -1,7 +1,18 @@
+// lib/dao/mock_espacio_dao.dart
 import '../models/espacio.dart';
 import '../models/ubicacion.dart';
-import '../models/caracteristica_espacio.dart';
 import 'espacio_dao.dart';
+import '../models/nivel_ocupacion.dart';
+
+class CaracteristicaSimple {
+  final String nombre;
+  final String valor;
+
+  const CaracteristicaSimple({
+    required this.nombre,
+    required this.valor,
+  });
+}
 
 class MockEspacioDAO implements EspacioDAO {
   static final List<Espacio> _espacios = [
@@ -9,238 +20,112 @@ class MockEspacioDAO implements EspacioDAO {
       idEspacio: '1',
       nombre: 'Biblioteca Central ULima',
       tipo: 'Biblioteca',
-      nivelOcupacion: NivelOcupacion.medio,
+      descripcion: 'Biblioteca principal del campus ULima',
+      capacidad: 120,
+      nivelOcupacion: NivelOcupacion.medio.name,
       promedioCalificacion: 4.5,
       ubicacion: Ubicacion(
-        idUbicacion: '1',
-        latitud: -12.085384, 
-        longitud: -76.972002, 
-        piso: 1,
+        latitud: -12.085384,
+        longitud: -76.972002,
+        piso: '1',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '1',
-          nombre: 'WiFi',
-          valor: 'Gratuito',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '2',
-          nombre: 'Silencio',
-          valor: 'Alto',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '3',
-          nombre: 'Aire Acondicionado',
-          valor: 'Disponible',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '2',
       nombre: 'Cafetería Estudiantil',
       tipo: 'Cafetería',
-      nivelOcupacion: NivelOcupacion.alto,
+      descripcion: 'Cafetería principal para estudiantes',
+      capacidad: 80,
+      nivelOcupacion: NivelOcupacion.alto.name,
       promedioCalificacion: 3.8,
       ubicacion: Ubicacion(
-        idUbicacion: '2',
-        latitud: -12.084125494983718, 
+        latitud: -12.084125494983718,
         longitud: -76.97080240788367,
-        piso: 0,
+        piso: '0',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '4',
-          nombre: 'Comida',
-          valor: 'Disponible',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '5',
-          nombre: 'Ruido',
-          valor: 'Medio',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '6',
-          nombre: 'Precios',
-          valor: 'Económicos',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '3',
       nombre: 'Jardín Central ULima',
       tipo: 'Exterior',
-      nivelOcupacion: NivelOcupacion.bajo,
+      descripcion: 'Zona verde del campus',
+      capacidad: 200,
+      nivelOcupacion: NivelOcupacion.bajo.name,
       promedioCalificacion: 4.7,
       ubicacion: Ubicacion(
-        idUbicacion: '3',
-        latitud: -12.085493, 
+        latitud: -12.085493,
         longitud: -76.970593,
-        piso: 0,
+        piso: '0',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '7',
-          nombre: 'Naturaleza',
-          valor: 'Alto',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '8',
-          nombre: 'Silencio',
-          valor: 'Alto',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '9',
-          nombre: 'Sombras',
-          valor: 'Disponibles',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '4',
       nombre: 'Sala de Estudio 24/7',
       tipo: 'Sala de Estudio',
-      nivelOcupacion: NivelOcupacion.vacio,
+      descripcion: 'Sala de estudio disponible 24 horas',
+      capacidad: 50,
+      nivelOcupacion: NivelOcupacion.vacio.name,
       promedioCalificacion: 4.2,
       ubicacion: Ubicacion(
-        idUbicacion: '4',
         latitud: -12.0468,
         longitud: -77.0435,
-        piso: 2,
+        piso: '2',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '10',
-          nombre: 'Horario',
-          valor: '24/7',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '11',
-          nombre: 'Silencio',
-          valor: 'Alto',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '12',
-          nombre: 'Computadoras',
-          valor: 'Disponibles',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '5',
       nombre: 'Patio de Comidas ULima',
       tipo: 'Comedor',
-      nivelOcupacion: NivelOcupacion.lleno,
+      descripcion: 'Zona central de comidas para estudiantes',
+      capacidad: 150,
+      nivelOcupacion: NivelOcupacion.lleno.name,
       promedioCalificacion: 3.5,
       ubicacion: Ubicacion(
-        idUbicacion: '5',
-        latitud: -12.085318620825518, 
+        latitud: -12.085318620825518,
         longitud: -76.97001296236631,
-        piso: 0,
+        piso: '0',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '13',
-          nombre: 'Comida',
-          valor: 'Variada',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '14',
-          nombre: 'Ruido',
-          valor: 'Alto',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '15',
-          nombre: 'Horario',
-          valor: 'Amplio',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '6',
       nombre: 'Laboratorio de Computación',
       tipo: 'Laboratorio',
-      nivelOcupacion: NivelOcupacion.medio,
+      descripcion: 'Laboratorio de computadoras para clases',
+      capacidad: 45,
+      nivelOcupacion: NivelOcupacion.medio.name,
       promedioCalificacion: 4.0,
       ubicacion: Ubicacion(
-        idUbicacion: '6',
-        latitud: -12.085413880927165, 
+        latitud: -12.085413880927165,
         longitud: -76.97162823993533,
-        piso: 3,
+        piso: '3',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '16',
-          nombre: 'Computadoras',
-          valor: 'Modernas',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '17',
-          nombre: 'Internet',
-          valor: 'Rápido',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '18',
-          nombre: 'Aire Acondicionado',
-          valor: 'Disponible',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
     Espacio(
       idEspacio: '7',
       nombre: 'Auditorio Principal',
       tipo: 'Auditorio',
-      nivelOcupacion: NivelOcupacion.bajo,
+      descripcion: 'Auditorio grande para eventos y conferencias',
+      capacidad: 300,
+      nivelOcupacion: NivelOcupacion.bajo.name,
       promedioCalificacion: 4.3,
       ubicacion: Ubicacion(
-        idUbicacion: '7',
-        latitud: -12.085550816932631, 
+        latitud: -12.085550816932631,
         longitud: -76.97140706655006,
-        piso: 1,
+        piso: '1',
       ),
-      caracteristicas: [
-        CaracteristicaEspacio(
-          idCaracteristica: '19',
-          nombre: 'Capacidad',
-          valor: 'Grande',
-          tipoFiltro: 'servicio',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '20',
-          nombre: 'Silencio',
-          valor: 'Alto',
-          tipoFiltro: 'ambiente',
-        ),
-        CaracteristicaEspacio(
-          idCaracteristica: '21',
-          nombre: 'Proyección',
-          valor: 'Disponible',
-          tipoFiltro: 'servicio',
-        ),
-      ],
+      caracteristicas: const [],
       categoriaIds: const [],
     ),
   ];
@@ -250,7 +135,7 @@ class MockEspacioDAO implements EspacioDAO {
     await Future.delayed(const Duration(milliseconds: 100));
     try {
       return _espacios.firstWhere((e) => e.idEspacio == id);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
@@ -264,40 +149,40 @@ class MockEspacioDAO implements EspacioDAO {
   @override
   Future<List<Espacio>> obtenerPorTipo(String tipo) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    return _espacios.where((e) => e.tipo.toLowerCase().contains(tipo.toLowerCase())).toList();
+    return _espacios
+        .where((e) => e.tipo.toLowerCase().contains(tipo.toLowerCase()))
+        .toList();
   }
 
   @override
   Future<List<Espacio>> obtenerPorNivelOcupacion(String nivel) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    return _espacios.where((e) => e.nivelOcupacion.name == nivel.toLowerCase()).toList();
+    return _espacios.where((e) => e.nivelOcupacion == nivel).toList();
   }
 
   @override
-  Future<List<Espacio>> filtrarPorCaracteristicas(Map<String, String> filtros) async {
+  Future<List<Espacio>> filtrarPorCaracteristicas(
+      Map<String, String> filtros) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    return _espacios.where((espacio) {
-      return filtros.entries.every((filtro) {
-        return espacio.caracteristicas.any((caracteristica) =>
-            caracteristica.nombre.toLowerCase() == filtro.key.toLowerCase() &&
-            caracteristica.valor.toLowerCase().contains(filtro.value.toLowerCase()));
-      });
-    }).toList();
+    // Sin filtros reales por ahora
+    return List.from(_espacios);
   }
 
   @override
-  Future<void> crear(Espacio espacio) async {
+  Future<Espacio> crear(Espacio espacio) async {
     await Future.delayed(const Duration(milliseconds: 100));
     _espacios.add(espacio);
+    return espacio;
   }
 
   @override
-  Future<void> actualizar(Espacio espacio) async {
+  Future<Espacio> actualizar(Espacio espacio) async {
     await Future.delayed(const Duration(milliseconds: 100));
     final index = _espacios.indexWhere((e) => e.idEspacio == espacio.idEspacio);
     if (index != -1) {
       _espacios[index] = espacio;
     }
+    return espacio;
   }
 
   @override

@@ -10,6 +10,7 @@ import '../dao/auth_service.dart';
 import '../models/espacio.dart';
 import '../models/estudiante.dart';
 import '../models/administrador_sistema.dart';
+import '../models/nivel_ocupacion.dart';
 import '../models/categoria_espacio.dart';
 import 'detalle_espacio_screen.dart';
 import 'crear_espacio_screen.dart';
@@ -95,12 +96,24 @@ class _MapaScreenState extends State<MapaScreen> {
     }
   }
 
+  // AGREGAR ESTA FUNCIÓN NUEVA
+  NivelOcupacion _parseNivelOcupacion(String nivel) {
+    switch (nivel) {
+      case 'vacio': return NivelOcupacion.vacio;
+      case 'bajo': return NivelOcupacion.bajo;
+      case 'medio': return NivelOcupacion.medio;
+      case 'alto': return NivelOcupacion.alto;
+      case 'lleno': return NivelOcupacion.lleno;
+      default: return NivelOcupacion.vacio;
+    }
+  }
+
+  // 👇 CORREGIR ESTA FUNCIÓN - USAR Navigator.pushNamed
   void _showEspacioDetails(Espacio espacio) {
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (context) => DetalleEspacioScreen(espacio: espacio),
-      ),
+      '/detalle-espacio',
+      arguments: espacio,
     );
   }
 
@@ -156,8 +169,7 @@ class _MapaScreenState extends State<MapaScreen> {
                             onTap: () => _showEspacioDetails(espacio),
                             child: Icon(
                               Icons.location_on,
-                              color:
-                                  _getOcupacionColor(espacio.nivelOcupacion),
+                              color: _getOcupacionColor(_parseNivelOcupacion(espacio.nivelOcupacion)), // CORREGIDO
                               size: 40,
                             ),
                           ),

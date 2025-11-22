@@ -1,39 +1,72 @@
+// lib/screens/detalle_espacio_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import '../models/espacio.dart';
-import '../models/disponibilidad.dart';
-import '../dao/mock_disponibilidad_dao.dart';
+import 'package:provider/provider.dart';
 
+import '../models/espacio.dart';
+import '../models/categoria_espacio.dart';
+import '../models/calificacion.dart';
+
+import '../dao/dao_factory.dart';
+import '../dao/categoria_dao.dart';
+import '../dao/calificacion_dao.dart';
+import '../dao/auth_service.dart';
+
+/// Extension para obtener el id de la calificación
+/// Funciona tanto si tu modelo tiene `idCalificacion` como `id`.
+extension CalificacionIdExt on Calificacion {
+  String get calificacionId {
+    try {
+      final dynamic self = this;
+      final dynamic v = self.idCalificacion ?? self.id;
+      if (v != null) return v.toString();
+    } catch (_) {}
+    return '';
+  }
+}
+
+/// Pantalla para mostrar los detalles de un espacio con categorías
+/// y gestión de calificaciones (⭐, comentar, editar, eliminar).
 class DetalleEspacioScreen extends StatefulWidget {
   final Espacio espacio;
 
-  const DetalleEspacioScreen({super.key, required this.espacio});
+  const DetalleEspacioScreen({
+    Key? key,
+    required this.espacio,
+  }) : super(key: key);
 
   @override
   State<DetalleEspacioScreen> createState() => _DetalleEspacioScreenState();
 }
 
 class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
-  final TextEditingController _comentarioController = TextEditingController();
-  final MockDisponibilidadDAO _daoDisponibilidad = MockDisponibilidadDAO();
+  late CategoriaDAO _categoriaDAO;
+  late CalificacionDAO _calificacionDAO;
+  bool _daoInicializado = false;
 
-  double _puntuacion = 0.0;
-  bool _isSubmitting = false;
-  String? _estadoSeleccionado; // disponible | ocupado
+  Map<TipoCategoria, List<CategoriaEspacio>> _categoriasPorTipo = {};
+  bool _isLoadingCategorias = true;
+  String? _errorCategorias;
+
+  // ---- Calificaciones ----
+  List<Calificacion> _calificaciones = [];
+  bool _isLoadingCalificaciones = true;
+  String? _errorCalificaciones;
+
+  double _ratingSeleccionado = 0;
+  final TextEditingController _comentarioController = TextEditingController();
+  bool _guardandoCalificacion = false;
 
   @override
-  void initState() {
-    super.initState();
-    _cargarDisponibilidad();
-  }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-  Future<void> _cargarDisponibilidad() async {
-    final disponibilidad =
-        await _daoDisponibilidad.obtenerPorEspacio(widget.espacio.idEspacio);
-    if (disponibilidad != null) {
-      setState(() {
-        _estadoSeleccionado = disponibilidad.estado;
-      });
+    if (!_daoInicializado) {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      _categoriaDAO = daoFactory.createCategoriaDAO();
+      _calificacionDAO = daoFactory.createCalificacionDAO();
+      _daoInicializado = true;
+      _cargarCategorias();
+      _cargarCalificaciones();
     }
   }
 
@@ -43,447 +76,451 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     super.dispose();
   }
 
-  Color _getOcupacionColor(NivelOcupacion nivel) {
-    switch (nivel) {
-      case NivelOcupacion.vacio:
-        return Colors.green;
-      case NivelOcupacion.bajo:
-        return Colors.yellow[700]!;
-      case NivelOcupacion.medio:
-        return Colors.orange;
-      case NivelOcupacion.alto:
-        return Colors.red;
-      case NivelOcupacion.lleno:
-        return Colors.purple;
-    }
-  }
+  // ===================== CATEGORÍAS =====================
 
-  String _getOcupacionText(NivelOcupacion nivel) {
-    switch (nivel) {
-      case NivelOcupacion.vacio:
-        return 'Vacío';
-      case NivelOcupacion.bajo:
-        return 'Baja ocupación';
-      case NivelOcupacion.medio:
-        return 'Ocupación media';
-      case NivelOcupacion.alto:
-        return 'Alta ocupación';
-      case NivelOcupacion.lleno:
-        return 'Lleno';
-    }
-  }
-
-  IconData _getIconForTipo(String tipo) {
-    switch (tipo.toLowerCase()) {
-      case 'biblioteca':
-        return Icons.library_books;
-      case 'cafetería':
-        return Icons.local_cafe;
-      case 'exterior':
-        return Icons.park;
-      case 'sala de estudio':
-        return Icons.school;
-      case 'comedor':
-        return Icons.restaurant;
-      default:
-        return Icons.place;
-    }
-  }
-
-  Future<void> _reportarDisponibilidad(String estado) async {
+  Future<void> _cargarCategorias() async {
     setState(() {
-      _estadoSeleccionado = estado;
+      _isLoadingCategorias = true;
+      _errorCategorias = null;
     });
 
-    final nueva = Disponibilidad(idEspacio: widget.espacio.idEspacio, estado: estado);
-    await _daoDisponibilidad.guardar(nueva);
+    try {
+      final Map<TipoCategoria, List<CategoriaEspacio>> tempMap = {};
 
+      for (var tipo in TipoCategoria.values) {
+        final todasCategorias = await _categoriaDAO.obtenerPorTipo(tipo);
+
+        final categoriasAsignadas = todasCategorias
+            .where(
+                (cat) => widget.espacio.categoriaIds.contains(cat.idCategoria))
+            .toList();
+
+        if (categoriasAsignadas.isNotEmpty) {
+          tempMap[tipo] = categoriasAsignadas;
+        }
+      }
+
+      setState(() {
+        _categoriasPorTipo = tempMap;
+        _isLoadingCategorias = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorCategorias = 'Error al cargar categorías: $e';
+        _isLoadingCategorias = false;
+      });
+    }
+  }
+
+  // ===================== CALIFICACIONES =====================
+
+  Future<void> _cargarCalificaciones() async {
+    setState(() {
+      _isLoadingCalificaciones = true;
+      _errorCalificaciones = null;
+    });
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final token = auth.token;
+
+      if (token.isEmpty) {
+        setState(() {
+          _calificaciones = [];
+          _isLoadingCalificaciones = false;
+        });
+        return;
+      }
+
+      final lista = await _calificacionDAO.obtenerCalificacionesPorEspacio(
+        idEspacio: widget.espacio.idEspacio,
+        authToken: token,
+      );
+
+      setState(() {
+        _calificaciones = lista;
+        _isLoadingCalificaciones = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorCalificaciones = 'Error al cargar calificaciones: $e';
+        _isLoadingCalificaciones = false;
+      });
+    }
+  }
+
+  Future<void> _guardarCalificacion() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    if (auth.token.isEmpty || auth.usuarioActual == null) {
+      _mostrarError(
+          'Debes iniciar sesión para calificar y comentar este espacio.');
+      return;
+    }
+
+    if (_ratingSeleccionado <= 0) {
+      _mostrarError('Selecciona una puntuación de 1 a 5 estrellas.');
+      return;
+    }
+
+    setState(() => _guardandoCalificacion = true);
+
+    try {
+      await _calificacionDAO.crearCalificacion(
+        idEspacio: widget.espacio.idEspacio,
+        puntuacion: _ratingSeleccionado,
+        comentario: _comentarioController.text.trim(),
+        authToken: auth.token,
+      );
+
+      _comentarioController.clear();
+      setState(() {
+        _ratingSeleccionado = 0;
+      });
+
+      await _cargarCalificaciones();
+      _mostrarOk('Calificación guardada correctamente.');
+    } catch (e) {
+      _mostrarError('No se pudo crear la calificación: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _guardandoCalificacion = false);
+      }
+    }
+  }
+
+  Future<void> _editarCalificacion(
+      Calificacion c, double puntuacion, String comentario) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    try {
+      await _calificacionDAO.actualizarCalificacion(
+        idCalificacion: c.calificacionId,
+        puntuacion: puntuacion,
+        comentario: comentario,
+        authToken: auth.token,
+      );
+      await _cargarCalificaciones();
+      _mostrarOk('Calificación actualizada.');
+    } catch (e) {
+      _mostrarError('No se pudo actualizar la calificación: $e');
+    }
+  }
+
+  Future<void> _borrarCalificacion(Calificacion c) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    try {
+      await _calificacionDAO.eliminarCalificacion(
+        idCalificacion: c.calificacionId,
+        authToken: auth.token,
+      );
+      await _cargarCalificaciones();
+      _mostrarOk('Calificación eliminada.');
+    } catch (e) {
+      _mostrarError('No se pudo eliminar la calificación: $e');
+    }
+  }
+
+  void _mostrarError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          estado == 'disponible'
-              ? '✅ Espacio reportado como disponible'
-              : '🚫 Espacio reportado como ocupado',
-        ),
-        backgroundColor:
-            estado == 'disponible' ? Colors.green : Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
+        content: Text(msg),
+        backgroundColor: Colors.red,
       ),
     );
   }
 
-  Future<void> _submitCalificacion() async {
-    if (_puntuacion == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor selecciona una puntuación')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-    });
-
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() {
-      _isSubmitting = false;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Calificación enviada exitosamente')),
-      );
-    }
-
-    _comentarioController.clear();
-    setState(() {
-      _puntuacion = 0.0;
-    });
+  void _mostrarOk(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFF10B981),
+      ),
+    );
   }
+
+  // ===================== BUILD =====================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text(widget.espacio.nombre),
-        backgroundColor: const Color(0xFF1976D2),
+        title: const Text('Detalle del Espacio'),
+        backgroundColor: const Color(0xFFF97316),
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: RefreshIndicator(
+        color: const Color(0xFFF97316),
+        backgroundColor: Colors.white,
+        onRefresh: () async {
+          await _cargarCategorias();
+          await _cargarCalificaciones();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 24),
+              _buildCategorias(),
+              const SizedBox(height: 24),
+              _buildCalificacionesSection(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== HEADER =====================
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF97316), Color(0xFFEA580C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF97316).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.place,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.espacio.nombre,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.espacio.tipo,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.star, color: Colors.yellow, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                widget.espacio.promedioCalificacion > 0
+                    ? widget.espacio.promedioCalificacion.toStringAsFixed(1)
+                    : 'Sin calificaciones',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===================== CATEGORÍAS =====================
+
+  Widget _buildCategorias() {
+    if (_isLoadingCategorias) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFF97316)),
+      );
+    }
+
+    if (_errorCategorias != null) {
+      return Text(
+        _errorCategorias!,
+        style: const TextStyle(color: Colors.red),
+      );
+    }
+
+    if (_categoriasPorTipo.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay categorías asignadas',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Asigna categorías desde el panel de administración',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _categoriasPorTipo.entries.map((entry) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: _buildSeccionCategorias(entry.key, entry.value),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSeccionCategorias(
+    TipoCategoria tipo,
+    List<CategoriaEspacio> categorias,
+  ) {
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // === HEADER DEL ESPACIO ===
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor:
-                              _getOcupacionColor(widget.espacio.nivelOcupacion),
-                          child: Icon(
-                            _getIconForTipo(widget.espacio.tipo),
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.espacio.nombre,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                widget.espacio.tipo,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Estado de ocupación
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _getOcupacionColor(widget.espacio.nivelOcupacion)
-                            .withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _getOcupacionColor(widget.espacio.nivelOcupacion),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        _getOcupacionText(widget.espacio.nivelOcupacion),
-                        style: TextStyle(
-                          color: _getOcupacionColor(widget.espacio.nivelOcupacion),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Calificación promedio
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${widget.espacio.promedioCalificacion.toStringAsFixed(1)} / 5.0',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF97316),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tipo.displayName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A202C),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF97316).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${categorias.length}',
+                    style: const TextStyle(
+                      color: Color(0xFFF97316),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 20),
-
-            // === NUEVO BLOQUE: Reportar disponibilidad ===
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Reportar disponibilidad',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: categorias.map((categoria) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF97316).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFF97316).withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircleAvatar(
+                        radius: 4,
+                        backgroundColor: Color(0xFFF97316),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildEstadoButton('disponible', Colors.green),
-                        _buildEstadoButton('ocupado', Colors.redAccent),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // === UBICACIÓN ===
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Ubicación',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.red),
-                        const SizedBox(width: 8),
-                        Text('Piso ${widget.espacio.ubicacion.piso}'),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.my_location, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                            '${widget.espacio.ubicacion.latitud.toStringAsFixed(4)}, ${widget.espacio.ubicacion.longitud.toStringAsFixed(4)}'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // === CARACTERÍSTICAS ===
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Características',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: widget.espacio.caracteristicas.map((caracteristica) {
-                        return Chip(
-                          label: Text(caracteristica.nombre),
-                          backgroundColor: Colors.blue[50],
-                          side: BorderSide(color: Colors.blue[200]!),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // === CALIFICACIONES MOCK ===
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Calificaciones',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildCalificacionItem(
-                      puntuacion: 5,
-                      comentario: 'Excelente lugar para estudiar, muy silencioso',
-                      fecha: DateTime.now().subtract(const Duration(days: 2)),
-                    ),
-                    const Divider(),
-                    _buildCalificacionItem(
-                      puntuacion: 4,
-                      comentario: 'Buen ambiente, pero a veces hay mucho ruido',
-                      fecha: DateTime.now().subtract(const Duration(days: 5)),
-                    ),
-                    const Divider(),
-                    _buildCalificacionItem(
-                      puntuacion: 3,
-                      comentario: 'Regular, podría mejorar la limpieza',
-                      fecha: DateTime.now().subtract(const Duration(days: 7)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // === FORMULARIO DE CALIFICACIÓN ===
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Calificar este espacio',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: RatingBar.builder(
-                        initialRating: _puntuacion,
-                        minRating: 1,
-                        direction: Axis.horizontal,
-                        allowHalfRating: false,
-                        itemCount: 5,
-                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        itemBuilder: (context, _) => const Icon(
-                          Icons.star,
-                          color: Colors.amber,
+                      const SizedBox(width: 10),
+                      Text(
+                        categoria.nombre,
+                        style: const TextStyle(
+                          color: Color(0xFF1A202C),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                         ),
-                        onRatingUpdate: (rating) {
-                          setState(() {
-                            _puntuacion = rating;
-                          });
-                        },
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _comentarioController,
-                      decoration: const InputDecoration(
-                        labelText: 'Comentario (opcional)',
-                        border: OutlineInputBorder(),
-                        hintText: 'Comparte tu experiencia...',
-                      ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitCalificacion,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1976D2),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Enviar Calificación',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -491,68 +528,312 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     );
   }
 
-  Widget _buildEstadoButton(String estado, Color color) {
-    final bool isSelected = _estadoSeleccionado == estado;
+  // ===================== CALIFICACIONES UI =====================
 
-    return ElevatedButton.icon(
-      onPressed: () => _reportarDisponibilidad(estado),
-      icon: Icon(
-        estado == 'disponible' ? Icons.check_circle : Icons.cancel,
-        color: isSelected ? Colors.white : color,
+  Widget _buildCalificacionesSection() {
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      label: Text(
-        estado == 'disponible' ? 'Disponible' : 'Ocupado',
-        style: TextStyle(
-          color: isSelected ? Colors.white : color,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? color : Colors.white,
-        side: BorderSide(color: color, width: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.star_rate_rounded,
+                    color: Color(0xFFF97316), size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Calificaciones y comentarios',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildRatingInput(),
+            const SizedBox(height: 16),
+            _buildListaCalificaciones(),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildCalificacionItem({
-    required int puntuacion,
-    required String comentario,
-    required DateTime fecha,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget _buildRatingInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tu calificación:',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(5, (index) {
+            final starIndex = index + 1;
+            final isSelected = _ratingSeleccionado >= starIndex;
+            return IconButton(
+              onPressed: () {
+                setState(() {
+                  _ratingSeleccionado =
+                      _ratingSeleccionado == starIndex ? 0 : starIndex.toDouble();
+                });
+              },
+              icon: Icon(
+                isSelected ? Icons.star : Icons.star_border,
+                color: const Color(0xFFF97316),
+              ),
+            );
+          }),
+        ),
+        TextField(
+          controller: _comentarioController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            labelText: 'Comentario (opcional)',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            onPressed: _guardandoCalificacion ? null : _guardarCalificacion,
+            icon: _guardandoCalificacion
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.send, size: 18),
+            label: const Text('Enviar'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListaCalificaciones() {
+    if (_isLoadingCalificaciones) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(12.0),
+          child: CircularProgressIndicator(color: Color(0xFFF97316)),
+        ),
+      );
+    }
+
+    if (_errorCalificaciones != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8.0),
+        child: Text(
+          _errorCalificaciones!,
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+
+    if (_calificaciones.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8.0),
+        child: Text(
+          'Aún no hay comentarios. ¡Sé el primero en calificar este espacio!',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+      );
+    }
+
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final miId = auth.usuarioActual?.idUsuario;
+
+    return ListView.separated(
+      itemCount: _calificaciones.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      separatorBuilder: (_, __) => const Divider(height: 16),
+      itemBuilder: (context, index) {
+        final c = _calificaciones[index];
+        final esMio = c.idUsuario == miId;
+
+        return _buildCalificacionTile(c, esMio);
+      },
+    );
+  }
+
+  Widget _buildCalificacionTile(Calificacion c, bool esMio) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.person, size: 32, color: Colors.grey),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RatingBar.builder(
-                initialRating: puntuacion.toDouble(),
-                minRating: 1,
-                direction: Axis.horizontal,
-                allowHalfRating: false,
-                itemCount: 5,
-                itemSize: 16,
-                itemBuilder: (context, _) =>
-                    const Icon(Icons.star, color: Colors.amber),
-                onRatingUpdate: (rating) {},
-                ignoreGestures: true,
+              Row(
+                children: [
+                  Row(
+                    children: List.generate(5, (index) {
+                      final starIndex = index + 1;
+                      return Icon(
+                        c.puntuacion >= starIndex
+                            ? Icons.star
+                            : Icons.star_border,
+                        size: 16,
+                        color: const Color(0xFFF97316),
+                      );
+                    }),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    c.puntuacion.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${c.fecha.day.toString().padLeft(2, '0')}/${c.fecha.month.toString().padLeft(2, '0')}/${c.fecha.year}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Text(
-                '${fecha.day}/${fecha.month}/${fecha.year}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
+              if ((c.comentario ?? '').isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  c.comentario!,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+              if (esMio) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _mostrarDialogoEditar(c),
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text(
+                        'Editar',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _confirmarEliminar(c),
+                      icon: const Icon(Icons.delete, size: 16),
+                      label: const Text(
+                        'Eliminar',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 4),
-          Text(comentario, style: const TextStyle(fontSize: 14)),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _mostrarDialogoEditar(Calificacion c) async {
+    double ratingTemp = c.puntuacion;
+    final TextEditingController comentarioTemp =
+        TextEditingController(text: c.comentario ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar calificación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: List.generate(5, (index) {
+                final starIndex = index + 1;
+                final isSelected = ratingTemp >= starIndex;
+                return IconButton(
+                  onPressed: () {
+                    setState(() {});
+                    ratingTemp = starIndex.toDouble();
+                    // Forzar rebuild del dialog
+                    (context as Element).markNeedsBuild();
+                  },
+                  icon: Icon(
+                    isSelected ? Icons.star : Icons.star_border,
+                    color: const Color(0xFFF97316),
+                  ),
+                );
+              }),
+            ),
+            TextField(
+              controller: comentarioTemp,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Comentario',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _editarCalificacion(
+                c,
+                ratingTemp,
+                comentarioTemp.text.trim(),
+              );
+            },
+            child: const Text('Guardar'),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmarEliminar(Calificacion c) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar calificación'),
+        content: const Text(
+            '¿Seguro que deseas eliminar esta calificación y comentario?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      await _borrarCalificacion(c);
+    }
   }
 }
