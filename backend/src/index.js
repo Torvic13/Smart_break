@@ -3,8 +3,9 @@ const connectDB = require('./database');
 
 async function main() {
   await connectDB();
-  await app.listen(4000);
-  console.log('✅ Server on port 4000');
+  app.listen(4000, () => {
+    console.log('🚀 Servidor corriendo en http://localhost:4000');
+  });
 }
 
 main();

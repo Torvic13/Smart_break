@@ -1,46 +1,32 @@
-import 'espacio.dart';
-
+// models/ubicacion.dart
 class Ubicacion {
-  final String idUbicacion;
   final double latitud;
   final double longitud;
-  final int piso;   // mantenemos int
+  final String? piso;
+  final String? edificio;
 
   Ubicacion({
-    required this.idUbicacion,
     required this.latitud,
     required this.longitud,
-    required this.piso,
+    this.piso,
+    this.edificio,
   });
 
-  List<Espacio> obtenerCercanos(double radioKm) {
-    return [];
+  factory Ubicacion.fromJson(Map<String, dynamic> json) {
+    return Ubicacion(
+      latitud: (json['latitud'] ?? 0).toDouble(),
+      longitud: (json['longitud'] ?? 0).toDouble(),
+      piso: json['piso'],
+      edificio: json['edificio'],
+    );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'idUbicacion': idUbicacion,
       'latitud': latitud,
       'longitud': longitud,
       'piso': piso,
+      'edificio': edificio,
     };
-  }
-
-  factory Ubicacion.fromJson(Map<String, dynamic> json) {
-    // El valor puede venir como int o String → convertirlo a int sí o sí
-    final pisoRaw = json['piso'];
-
-    return Ubicacion(
-      idUbicacion: json['idUbicacion']?.toString() ?? '',
-      latitud: (json['latitud'] is num)
-          ? (json['latitud'] as num).toDouble()
-          : double.parse(json['latitud'].toString()),
-      longitud: (json['longitud'] is num)
-          ? (json['longitud'] as num).toDouble()
-          : double.parse(json['longitud'].toString()),
-      piso: (pisoRaw is int)
-          ? pisoRaw
-          : int.tryParse(pisoRaw.toString()) ?? 0,   // 👈 evita error
-    );
   }
 }

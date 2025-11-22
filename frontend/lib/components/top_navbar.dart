@@ -13,7 +13,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
   const TopNavBar({
     super.key,
     this.title = 'Smart Break',
-    this.backgroundColor = const Color(0xFFF97316), // 👈 color naranja principal
+    this.backgroundColor = const Color(0xFFF97316),
     this.foregroundColor = Colors.white,
     this.categorias,
     this.onApplyFilters,
@@ -25,7 +25,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      automaticallyImplyLeading: false, // 👈 quita la flecha de retroceso
+      automaticallyImplyLeading: false,
       title: Text(
         title,
         style: const TextStyle(fontWeight: FontWeight.w600),
@@ -35,7 +35,6 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: true,
       elevation: 0,
       actions: [
-        // 🔸 Primero el filtro
         if (categorias != null && onApplyFilters != null)
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -53,7 +52,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
             },
           ),
 
-        // 🔸 Luego la lista de espacios
+        // CORREGIDO: Quitamos el 'const' del constructor y corregimos la sintaxis
         IconButton(
           icon: const Icon(Icons.list),
           tooltip: 'Lista de Espacios',
@@ -61,7 +60,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ListaEspaciosScreen(),
+                builder: (context) => ListaEspaciosScreen(), // SIN 'const'
               ),
             );
           },

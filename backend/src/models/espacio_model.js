@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 
-// --- Subdocumento Ubicación ---
 const ubicacionSchema = new mongoose.Schema(
   {
     latitud: { type: Number, required: true },
@@ -13,13 +12,12 @@ const ubicacionSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// --- Subdocumento Característica ---
 const caracteristicaSchema = new mongoose.Schema(
   {
     idCaracteristica: { type: String, required: true },
     nombre: { type: String, required: true },
-    valor: { type: String, required: true },      // 👈 NUEVO
-    tipoFiltro: { type: String, required: true }, // 👈 NUEVO
+    valor: { type: String, required: true },
+    tipoFiltro: { type: String, required: true },
   },
   { _id: false }
 );
@@ -34,16 +32,11 @@ const espacioSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    nombre: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    tipo: {
-      type: String,
-      required: true,
-      trim: true, // "Biblioteca", "Cafetería", etc.
-    },
+    nombre: { type: String, required: true, trim: true },
+    tipo: { type: String, required: true, trim: true },
+    descripcion: { type: String, default: "" },
+    capacidad: { type: Number, default: 0 },
+
     nivelOcupacion: {
       type: String,
       enum: NIVEL_OCUPACION,
@@ -55,29 +48,19 @@ const espacioSchema = new mongoose.Schema(
       min: 0,
       max: 5,
     },
-    ubicacion: {
-      type: ubicacionSchema,
-      required: true,
-    },
-    caracteristicas: {
-      type: [caracteristicaSchema],
-      default: [],
-    },
-    categoriaIds: {
-      type: [String],
-      default: [],
-    },
+
+    ubicacion: { type: ubicacionSchema, required: true },
+    caracteristicas: { type: [caracteristicaSchema], default: [] },
+    categoriaIds: { type: [String], default: [] },
   },
   { versionKey: false }
 );
 
-// Generar idEspacio si no viene
 espacioSchema.pre('validate', function (next) {
   if (!this.idEspacio) this.idEspacio = randomUUID();
   next();
 });
 
-// Formato JSON que encaja bien con tu front
 espacioSchema.set('toJSON', {
   transform: (_doc, ret) => {
     delete ret._id;

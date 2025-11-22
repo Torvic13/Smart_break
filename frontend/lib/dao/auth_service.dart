@@ -12,28 +12,34 @@ class AuthService extends ChangeNotifier {
   AuthService._internal();
 
   Usuario? _usuarioActual;
+  String _token = '';
 
   /// Obtiene el usuario actualmente autenticado
   Usuario? get usuarioActual => _usuarioActual;
 
+  /// Obtiene el token de autenticación
+  String get token => _token;
+
   /// Verifica si hay un usuario autenticado
-  bool get isAuthenticated => _usuarioActual != null;
+  bool get isAuthenticated => _usuarioActual != null && _token.isNotEmpty;
 
   /// Verifica si el usuario actual es un administrador
   bool get isAdmin => _usuarioActual != null &&
       _usuarioActual!.runtimeType.toString() == 'AdministradorSistema';
 
   /// Establece el usuario actual después del login
-  void setUsuario(Usuario usuario) {
+  void setUsuario(Usuario usuario, {String token = ''}) {
     _usuarioActual = usuario;
-    _guardarSesion(usuario); // 🔹 Guarda en memoria persistente
+    _token = token;
+    _guardarSesion(usuario, token);
     notifyListeners();
   }
 
   /// Cierra la sesión del usuario actual
   void logout() {
     _usuarioActual = null;
-    _borrarSesion(); // 🔹 Limpia datos guardados
+    _token = '';
+    _borrarSesion();
     notifyListeners();
   }
 
@@ -41,17 +47,18 @@ class AuthService extends ChangeNotifier {
   void actualizarUsuario(Usuario usuario) {
     if (_usuarioActual?.idUsuario == usuario.idUsuario) {
       _usuarioActual = usuario;
-      _guardarSesion(usuario); // 🔹 actualiza también en disco
+      _guardarSesion(usuario, _token);
       notifyListeners();
     }
   }
 
   // 🔹 Guarda la sesión en SharedPreferences
-  Future<void> _guardarSesion(Usuario usuario) async {
+  Future<void> _guardarSesion(Usuario usuario, String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('idUsuario', usuario.idUsuario);
     await prefs.setString('email', usuario.email);
     await prefs.setString('rol', usuario.runtimeType.toString());
+    await prefs.setString('auth_token', token);
 
     // Si el usuario es estudiante, guardamos sus datos específicos
     if (usuario is Estudiante) {
@@ -68,6 +75,7 @@ class AuthService extends ChangeNotifier {
     final id = prefs.getString('idUsuario');
     final email = prefs.getString('email');
     final rol = prefs.getString('rol');
+    final token = prefs.getString('auth_token');
 
     if (id != null && email != null && rol != null) {
       if (rol == 'AdministradorSistema') {
@@ -97,6 +105,8 @@ class AuthService extends ChangeNotifier {
           carrera: carrera,
         );
       }
+      
+      _token = token ?? '';
       notifyListeners();
     }
   }

@@ -1,3 +1,4 @@
+// lib/dao/espacio_dao.dart
 import '../models/espacio.dart';
 
 abstract class EspacioDAO {
@@ -6,7 +7,12 @@ abstract class EspacioDAO {
   Future<List<Espacio>> obtenerPorTipo(String tipo);
   Future<List<Espacio>> obtenerPorNivelOcupacion(String nivel);
   Future<List<Espacio>> filtrarPorCaracteristicas(Map<String, String> filtros);
-  Future<void> crear(Espacio espacio);
-  Future<void> actualizar(Espacio espacio);
+
+  /// Ahora el backend devuelve el espacio creado
+  Future<Espacio> crear(Espacio espacio);
+
+  /// Y también devuelve el espacio actualizado
+  Future<Espacio> actualizar(Espacio espacio);
+
   Future<void> eliminar(String id);
 }

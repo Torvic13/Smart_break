@@ -8,18 +8,23 @@ class Estudiante extends Usuario {
   final String carrera;
 
   Estudiante({
-    required super.idUsuario,
-    required super.email,
-    required super.passwordHash,
-    required super.fechaCreacion,
-    required super.estado,
+    required String idUsuario,
+    required String email,
+    required String passwordHash,
+    required DateTime fechaCreacion,
+    required EstadoUsuario estado,
     required this.codigoAlumno,
     required this.nombreCompleto,
     required this.ubicacionCompartida,
     required this.carrera,
   }) : super(
-         rol: RolUsuario.estudiante, // asignamos el rol aquí
-       );
+          idUsuario: idUsuario,
+          email: email,
+          passwordHash: passwordHash,
+          fechaCreacion: fechaCreacion,
+          estado: estado,
+          rol: RolUsuario.estudiante,
+        );
 
   void verMapa(Ubicacion ubicacionActual) {
     // Mock implementation - no real functionality

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../dao/dao_factory.dart';
 import '../dao/auth_service.dart';
-import '../models/administrador_sistema.dart';  // 👈 importa el modelo admin
+import '../dao/auth_dao.dart'; // 👈 IMPORTAR AuthDAO
+import '../models/administrador_sistema.dart';
 import 'mapa_screen.dart';
 import 'register_screen.dart';
-import 'admin_profile_screen.dart';             // 👈 importa la pantalla admin
+import 'admin_profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,67 +30,81 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() {
-    _isLoading = true;
-    _errorMessage = null;
-  });
-
-  try {
-    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
-    final authDao = daoFactory.createAuthDAO();
-
-    final usuario = await authDao.iniciarSesion(
-      email: _emailController.text,
-      pass: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    if (usuario == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Credenciales inválidas';
-      });
-      return;
-    }
-
-    // Guardamos usuario en AuthService (y eventualmente el token)
-    AuthService().setUsuario(usuario);
-
-    // Navegación según tipo
-    if (usuario is AdministradorSistema) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const AdminProfileScreen(),
-        ),
-        (route) => false,
-      );
-    } else {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MapaScreen(),
-        ),
-        (route) => false,
-      );
-    }
-  } catch (e) {
-    if (!mounted) return;
     setState(() {
-      _errorMessage = 'Error al iniciar sesión: ${e.toString()}';
+      _isLoading = true;
+      _errorMessage = null;
     });
-  } finally {
-    if (mounted) {
+
+    try {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      final authDao = daoFactory.createAuthDAO();
+      final authService = Provider.of<AuthService>(context, listen: false);
+
+      final usuario = await authDao.iniciarSesion(
+        email: _emailController.text,
+        pass: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      if (usuario == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Credenciales inválidas';
+        });
+        return;
+      }
+
+      // 👇 OBTENER EL TOKEN DEL AUTHDAO
+      final token = authDao.getToken(); // 👈 LLAMAR DIRECTAMENTE AL MÉTODO
+      
+      print('🔐 [DEBUG] Token obtenido: ${token?.substring(0, 20)}...');
+
+      // 👇 VERIFICAR QUE EL TOKEN SE OBTUVO CORRECTAMENTE
+      if (token == null || token.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error: No se pudo obtener el token de autenticación';
+        });
+        return;
+      }
+
+      // 👇 GUARDAR USUARIO Y TOKEN
+      authService.setUsuario(usuario, token: token);
+
+      // Navegación según tipo
+      if (usuario is AdministradorSistema) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminProfileScreen(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MapaScreen(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        _errorMessage = 'Error al iniciar sesión: ${e.toString()}';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
