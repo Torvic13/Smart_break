@@ -4,6 +4,7 @@ import 'dao_factory.dart';
 import 'auth_dao.dart';
 import 'http_auth_dao.dart';
 import 'usuario_dao.dart';
+import 'http_usuario_dao.dart';
 
 // DAOs de dominio
 import 'espacio_dao.dart';
@@ -15,15 +16,11 @@ import 'categoria_dao.dart';
 import 'http_espacio_dao.dart';
 
 // Mocks
-import 'mock_usuario_dao.dart';
 import 'mock_calificacion_dao.dart';
 import 'mock_reporte_ocupacion_dao.dart';
 import 'mock_categoria_dao.dart';
 
 class HttpDAOFactory implements DAOFactory {
-  // 👉 UsuarioDAO lo mantenemos mock (aún no tienes CRUD real en backend)
-  final MockUsuarioDAO _mockUsuarioDao = MockUsuarioDAO();
-
   @override
   AuthDAO createAuthDAO() => HttpAuthDAO(
         // Emulador Android → localhost = 10.0.2.2
@@ -31,7 +28,9 @@ class HttpDAOFactory implements DAOFactory {
       );
 
   @override
-  UsuarioDAO createUsuarioDAO() => _mockUsuarioDao;
+  UsuarioDAO createUsuarioDAO() => HttpUsuarioDAO(
+        baseUrl: 'http://10.0.2.2:4000/api/v1',
+      );
 
   // 👉 AHORA ESPACIOS SE CARGAN DESDE EL BACKEND
   @override

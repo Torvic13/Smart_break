@@ -60,6 +60,12 @@ const userSchema = new mongoose.Schema(
       default: function () { return this.rol === 'estudiante' ? 'No especificada' : undefined; },
       trim: true,
     },
+    
+    // ---- Lista de amigos (referencias a otros usuarios) ----
+    amigosIds: {
+      type: [String],
+      default: [],
+    },
   },
   { versionKey: false }
 );
