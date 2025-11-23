@@ -85,7 +85,103 @@ async function crearCalificacion(req, res) {
   }
 }
 
+async function recalcularPromedio(idEspacio) {
+  const agg = await Calificacion.aggregate([
+    { $match: { idEspacio } },
+    { $group: { _id: '$idEspacio', promedio: { $avg: '$puntuacion' } } },
+  ]);
+
+  const nuevoPromedio = agg.length > 0 ? agg[0].promedio : 0;
+
+  await Espacio.updateOne(
+    { idEspacio },
+    { $set: { promedioCalificacion: nuevoPromedio } }
+  );
+
+  return nuevoPromedio;
+}
+
+// PUT /api/v1/calificaciones/:idCalificacion
+async function actualizarCalificacion(req, res) {
+  try {
+    const { idCalificacion } = req.params;
+    const { puntuacion, comentario } = req.body;
+
+    const calif = await Calificacion.findOne({ idCalificacion });
+    if (!calif) {
+      return res.status(404).json({ message: 'Calificación no encontrada' });
+    }
+
+    // Solo el dueño o admin pueden editar
+    if (req.user.rol !== 'admin' && calif.idUsuario !== req.user.sub) {
+      return res.status(403).json({ message: 'No autorizado para editar' });
+    }
+
+    if (puntuacion != null) {
+      if (puntuacion < 1 || puntuacion > 5) {
+        return res.status(400).json({
+          message: 'La puntuación debe estar entre 1 y 5',
+        });
+      }
+      calif.puntuacion = puntuacion;
+    }
+
+    if (comentario != null) {
+      calif.comentario = comentario;
+    }
+
+    await calif.save();
+    const nuevoPromedio = await recalcularPromedio(calif.idEspacio);
+
+    return res.json({
+      message: 'Calificación actualizada',
+      calificacion: calif.toJSON(),
+      promedioCalificacion: nuevoPromedio,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al actualizar calificación', error: err.message });
+  }
+}
+
+// DELETE /api/v1/calificaciones/:idCalificacion
+async function eliminarCalificacion(req, res) {
+  try {
+    const { idCalificacion } = req.params;
+
+    const calif = await Calificacion.findOne({ idCalificacion });
+    if (!calif) {
+      return res.status(404).json({ message: 'Calificación no encontrada' });
+    }
+
+    // Solo dueño o admin
+    if (req.user.rol !== 'admin' && calif.idUsuario !== req.user.sub) {
+      return res.status(403).json({ message: 'No autorizado para eliminar' });
+    }
+
+    const idEspacio = calif.idEspacio;
+
+    await Calificacion.deleteOne({ idCalificacion });
+
+    const nuevoPromedio = await recalcularPromedio(idEspacio);
+
+    return res.json({
+      message: 'Calificación eliminada',
+      promedioCalificacion: nuevoPromedio,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al eliminar calificación', error: err.message });
+  }
+}
+
 module.exports = {
   listarCalificacionesPorEspacio,
   crearCalificacion,
+  actualizarCalificacion,
+  eliminarCalificacion,
 };

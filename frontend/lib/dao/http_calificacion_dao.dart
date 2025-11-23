@@ -13,6 +13,9 @@ class HttpCalificacionDAO implements CalificacionDAO {
   Uri _uriLista(String espacioId) =>
       Uri.parse('$baseUrl/espacios/$espacioId/calificaciones');
 
+  Uri _uriDetalle(String idCalificacion) =>
+      Uri.parse('$baseUrl/calificaciones/$idCalificacion');
+
   Map<String, String> _headers({bool auth = false}) {
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -33,12 +36,10 @@ class HttpCalificacionDAO implements CalificacionDAO {
   Map<String, dynamic> _normalize(Map<String, dynamic> json) {
     final normalized = Map<String, dynamic>.from(json);
 
-    // Mapear fechaCreacion -> fecha
     if (normalized['fecha'] == null && normalized['fechaCreacion'] != null) {
       normalized['fecha'] = normalized['fechaCreacion'];
     }
 
-    // Estado por defecto si no viene
     normalized['estado'] ??= 'aprobada';
 
     return normalized;
@@ -89,7 +90,43 @@ class HttpCalificacionDAO implements CalificacionDAO {
     }
   }
 
-  // Los demás métodos no los usas aún; los dejamos sin implementar.
+  @override
+  Future<void> actualizar(Calificacion calificacion) async {
+    if (calificacion.idCalificacion.isEmpty) {
+      throw Exception('idCalificacion requerido para actualizar');
+    }
+
+    final resp = await http.put(
+      _uriDetalle(calificacion.idCalificacion),
+      headers: _headers(auth: true),
+      body: jsonEncode({
+        'puntuacion': calificacion.puntuacion,
+        'comentario': calificacion.comentario,
+      }),
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al actualizar calificación (${resp.statusCode}): ${resp.body}',
+      );
+    }
+  }
+
+  @override
+  Future<void> eliminar(String id) async {
+    final resp = await http.delete(
+      _uriDetalle(id),
+      headers: _headers(auth: true),
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al eliminar calificación (${resp.statusCode}): ${resp.body}',
+      );
+    }
+  }
+
+  // No los usas aún
   @override
   Future<Calificacion?> obtenerPorId(String id) {
     throw UnimplementedError('obtenerPorId no está implementado en HTTP DAO');
@@ -104,15 +141,5 @@ class HttpCalificacionDAO implements CalificacionDAO {
   @override
   Future<List<Calificacion>> obtenerTodas() {
     throw UnimplementedError('obtenerTodas no está implementado en HTTP DAO');
-  }
-
-  @override
-  Future<void> actualizar(Calificacion calificacion) {
-    throw UnimplementedError('actualizar no está implementado en HTTP DAO');
-  }
-
-  @override
-  Future<void> eliminar(String id) {
-    throw UnimplementedError('eliminar no está implementado en HTTP DAO');
   }
 }

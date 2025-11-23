@@ -9,6 +9,7 @@ import '../models/calificacion.dart';
 import '../dao/mock_disponibilidad_dao.dart';
 import '../dao/dao_factory.dart';
 import '../dao/calificacion_dao.dart';
+import '../dao/auth_service.dart';
 
 class DetalleEspacioScreen extends StatefulWidget {
   final Espacio espacio;
@@ -201,8 +202,121 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     }
   }
 
+  Future<void> _editarCalificacion(Calificacion calif) async {
+    double nuevaPuntuacion = calif.puntuacion.toDouble();
+    final controller = TextEditingController(text: calif.comentario);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Editar calificación'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RatingBar.builder(
+                initialRating: nuevaPuntuacion,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: false,
+                itemCount: 5,
+                itemBuilder: (context, _) =>
+                    const Icon(Icons.star, color: Colors.amber),
+                onRatingUpdate: (rating) {
+                  nuevaPuntuacion = rating;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Comentario',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      calif.puntuacion = nuevaPuntuacion.toInt();
+      calif.comentario = controller.text.trim();
+
+      try {
+        await _calificacionDao.actualizar(calif);
+        await _cargarCalificaciones();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Calificación actualizada')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _eliminarCalificacion(Calificacion calif) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Eliminar calificación'),
+          content:
+              const Text('¿Seguro que deseas eliminar esta calificación?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar == true) {
+      try {
+        await _calificacionDao.eliminar(calif.idCalificacion);
+        await _cargarCalificaciones();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Calificación eliminada')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentUserId = AuthService().usuarioActual?.idUsuario;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.espacio.nombre),
@@ -458,9 +572,10 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                     ] else ...[
                       for (var i = 0; i < _calificaciones.length; i++) ...[
                         _buildCalificacionItem(
-                          puntuacion: _calificaciones[i].puntuacion,
-                          comentario: _calificaciones[i].comentario,
-                          fecha: _calificaciones[i].fecha,
+                          calificacion: _calificaciones[i],
+                          esPropia: currentUserId != null &&
+                              _calificaciones[i].idUsuario != null &&
+                              _calificaciones[i].idUsuario == currentUserId,
                         ),
                         if (i < _calificaciones.length - 1)
                           const Divider(),
@@ -590,10 +705,11 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
   }
 
   Widget _buildCalificacionItem({
-    required int puntuacion,
-    required String comentario,
-    required DateTime fecha,
+    required Calificacion calificacion,
+    required bool esPropia,
   }) {
+    final fecha = calificacion.fecha;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -602,7 +718,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
           Row(
             children: [
               RatingBar.builder(
-                initialRating: puntuacion.toDouble(),
+                initialRating: calificacion.puntuacion.toDouble(),
                 minRating: 1,
                 direction: Axis.horizontal,
                 allowHalfRating: false,
@@ -610,8 +726,16 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                 itemSize: 16,
                 itemBuilder: (context, _) =>
                     const Icon(Icons.star, color: Colors.amber),
-                onRatingUpdate: (rating) {},
+                onRatingUpdate: (_) {},
                 ignoreGestures: true,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                calificacion.puntuacion.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Spacer(),
               Text(
@@ -621,7 +745,29 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(comentario, style: const TextStyle(fontSize: 14)),
+          Text(calificacion.comentario, style: const TextStyle(fontSize: 14)),
+          if (esPropia) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => _editarCalificacion(calificacion),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Editar'),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => _eliminarCalificacion(calificacion),
+                  icon: const Icon(Icons.delete,
+                      size: 16, color: Colors.red),
+                  label: const Text(
+                    'Eliminar',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
