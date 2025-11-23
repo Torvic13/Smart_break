@@ -7,14 +7,14 @@ const { requireAuth, requireRole } = require('./middlewares/auth_middleware');
 
 // 🆕 Importar rutas de espacios
 const espacioRoutes = require('./routes/espacio_routes');
-
+const calificacionRoutes = require('./routes/calificacion_routes');
 const app = express();
 
 // Middlewares globales
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(cors());
-
+app.use('/api/v1', calificacionRoutes);
 // Ruta base de prueba
 app.get('/', (_req, res) => res.json({ message: 'API SmartBreak funcionando 🧠' }));
 

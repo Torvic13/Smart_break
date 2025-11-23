@@ -14,10 +14,10 @@ import 'categoria_dao.dart';
 
 // HTTP DAOs
 import 'http_espacio_dao.dart';
+import 'http_calificacion_dao.dart';
 
 // Mocks que aún seguimos usando
 import 'mock_usuario_dao.dart';
-import 'mock_calificacion_dao.dart';
 import 'mock_reporte_ocupacion_dao.dart';
 import 'mock_categoria_dao.dart';
 
@@ -35,12 +35,14 @@ class HttpDAOFactory implements DAOFactory {
   @override
   UsuarioDAO createUsuarioDAO() => _mockUsuarioDao;
 
-  // 👇 Espacios se cargan/crean desde el backend
+  // Espacios se cargan/crean desde el backend
   @override
   EspacioDAO createEspacioDAO() => HttpEspacioDAO(baseUrl: _baseUrl);
 
+  // 🔥 Calificaciones ahora van contra el backend
   @override
-  CalificacionDAO createCalificacionDAO() => MockCalificacionDAO();
+  CalificacionDAO createCalificacionDAO() =>
+      HttpCalificacionDAO(baseUrl: _baseUrl);
 
   @override
   ReporteOcupacionDAO createReporteOcupacionDAO() =>

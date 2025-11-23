@@ -2,6 +2,8 @@ enum EstadoCalificacion { pendiente, aprobada, rechazada }
 
 class Calificacion {
   String idCalificacion;
+  String? idEspacio; // del backend
+  String? idUsuario; // del backend
   int puntuacion;
   String comentario;
   DateTime fecha;
@@ -13,6 +15,8 @@ class Calificacion {
     required this.comentario,
     required this.fecha,
     this.estado = EstadoCalificacion.pendiente,
+    this.idEspacio,
+    this.idUsuario,
   });
 
   /// Permite editar campos dinámicamente (útil en DAO mock)
@@ -28,10 +32,12 @@ class Calificacion {
     }
   }
 
-  /// Convierte el objeto a JSON (para almacenamiento o red)
+  /// Convierte el objeto a JSON (para almacenamiento local, etc.)
   Map<String, dynamic> toJson() {
     return {
       'idCalificacion': idCalificacion,
+      'idEspacio': idEspacio,
+      'idUsuario': idUsuario,
       'puntuacion': puntuacion,
       'comentario': comentario,
       'fecha': fecha.toIso8601String(),
@@ -39,15 +45,24 @@ class Calificacion {
     };
   }
 
-  /// Crea un objeto desde JSON
+  /// Crea un objeto desde JSON (soporta `fecha` o `fechaCreacion`)
   factory Calificacion.fromJson(Map<String, dynamic> json) {
+    final fechaStr =
+        (json['fecha'] ?? json['fechaCreacion']) as String? ?? '';
+
+    final estadoStr = (json['estado'] as String?) ?? 'aprobada';
+
     return Calificacion(
-      idCalificacion: json['idCalificacion'],
-      puntuacion: json['puntuacion'],
-      comentario: json['comentario'],
-      fecha: DateTime.parse(json['fecha']),
+      idCalificacion: json['idCalificacion'] as String,
+      idEspacio: json['idEspacio'] as String?,
+      idUsuario: json['idUsuario'] as String?,
+      puntuacion: json['puntuacion'] as int,
+      comentario: json['comentario'] as String? ?? '',
+      fecha: fechaStr.isNotEmpty
+          ? DateTime.parse(fechaStr)
+          : DateTime.now(),
       estado: EstadoCalificacion.values.firstWhere(
-        (e) => e.name == json['estado'],
+        (e) => e.name == estadoStr,
         orElse: () => EstadoCalificacion.pendiente,
       ),
     );

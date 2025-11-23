@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:provider/provider.dart';
+
 import '../models/espacio.dart';
 import '../models/disponibilidad.dart';
+import '../models/calificacion.dart';
+
 import '../dao/mock_disponibilidad_dao.dart';
+import '../dao/dao_factory.dart';
+import '../dao/calificacion_dao.dart';
 
 class DetalleEspacioScreen extends StatefulWidget {
   final Espacio espacio;
@@ -17,23 +23,54 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
   final TextEditingController _comentarioController = TextEditingController();
   final MockDisponibilidadDAO _daoDisponibilidad = MockDisponibilidadDAO();
 
+  late CalificacionDAO _calificacionDao;
+
   double _puntuacion = 0.0;
   bool _isSubmitting = false;
   String? _estadoSeleccionado; // disponible | ocupado
 
+  List<Calificacion> _calificaciones = [];
+  bool _cargandoCalificaciones = true;
+
   @override
   void initState() {
     super.initState();
+
+    // Obtenemos el DAO desde la factory (Provider se configura en main.dart)
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+    _calificacionDao = daoFactory.createCalificacionDAO();
+
     _cargarDisponibilidad();
+    _cargarCalificaciones();
   }
 
   Future<void> _cargarDisponibilidad() async {
     final disponibilidad =
         await _daoDisponibilidad.obtenerPorEspacio(widget.espacio.idEspacio);
-    if (disponibilidad != null) {
+    if (disponibilidad != null && mounted) {
       setState(() {
         _estadoSeleccionado = disponibilidad.estado;
       });
+    }
+  }
+
+  Future<void> _cargarCalificaciones() async {
+    try {
+      final lista =
+          await _calificacionDao.obtenerPorEspacio(widget.espacio.idEspacio);
+      if (!mounted) return;
+      setState(() {
+        _calificaciones = lista;
+        _cargandoCalificaciones = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cargandoCalificaciones = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar calificaciones: $e')),
+      );
     }
   }
 
@@ -95,7 +132,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
       _estadoSeleccionado = estado;
     });
 
-    final nueva = Disponibilidad(idEspacio: widget.espacio.idEspacio, estado: estado);
+    final nueva =
+        Disponibilidad(idEspacio: widget.espacio.idEspacio, estado: estado);
     await _daoDisponibilidad.guardar(nueva);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -125,22 +163,42 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
       _isSubmitting = true;
     });
 
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final ahora = DateTime.now();
 
-    setState(() {
-      _isSubmitting = false;
-    });
+      final nueva = Calificacion(
+        idCalificacion: 'tmp-${ahora.millisecondsSinceEpoch}',
+        idEspacio: widget.espacio.idEspacio,
+        puntuacion: _puntuacion.toInt(),
+        comentario: _comentarioController.text.trim(),
+        fecha: ahora,
+        estado: EstadoCalificacion.pendiente,
+      );
 
-    if (mounted) {
+      await _calificacionDao.crear(nueva);
+      await _cargarCalificaciones();
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Calificación enviada exitosamente')),
       );
-    }
 
-    _comentarioController.clear();
-    setState(() {
-      _puntuacion = 0.0;
-    });
+      _comentarioController.clear();
+      setState(() {
+        _puntuacion = 0.0;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar calificación: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -208,20 +266,23 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
 
                     // Estado de ocupación
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: _getOcupacionColor(widget.espacio.nivelOcupacion)
                             .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: _getOcupacionColor(widget.espacio.nivelOcupacion),
+                          color:
+                              _getOcupacionColor(widget.espacio.nivelOcupacion),
                           width: 1,
                         ),
                       ),
                       child: Text(
                         _getOcupacionText(widget.espacio.nivelOcupacion),
                         style: TextStyle(
-                          color: _getOcupacionColor(widget.espacio.nivelOcupacion),
+                          color:
+                              _getOcupacionColor(widget.espacio.nivelOcupacion),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -256,7 +317,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -346,7 +408,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: widget.espacio.caracteristicas.map((caracteristica) {
+                      children:
+                          widget.espacio.caracteristicas.map((caracteristica) {
                         return Chip(
                           label: Text(caracteristica.nombre),
                           backgroundColor: Colors.blue[50],
@@ -361,7 +424,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
 
             const SizedBox(height: 20),
 
-            // === CALIFICACIONES MOCK ===
+            // === CALIFICACIONES (desde backend) ===
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -380,23 +443,29 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildCalificacionItem(
-                      puntuacion: 5,
-                      comentario: 'Excelente lugar para estudiar, muy silencioso',
-                      fecha: DateTime.now().subtract(const Duration(days: 2)),
-                    ),
-                    const Divider(),
-                    _buildCalificacionItem(
-                      puntuacion: 4,
-                      comentario: 'Buen ambiente, pero a veces hay mucho ruido',
-                      fecha: DateTime.now().subtract(const Duration(days: 5)),
-                    ),
-                    const Divider(),
-                    _buildCalificacionItem(
-                      puntuacion: 3,
-                      comentario: 'Regular, podría mejorar la limpieza',
-                      fecha: DateTime.now().subtract(const Duration(days: 7)),
-                    ),
+                    if (_cargandoCalificaciones) ...[
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    ] else if (_calificaciones.isEmpty) ...[
+                      const Text(
+                        'Aún no hay calificaciones para este espacio.',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ] else ...[
+                      for (var i = 0; i < _calificaciones.length; i++) ...[
+                        _buildCalificacionItem(
+                          puntuacion: _calificaciones[i].puntuacion,
+                          comentario: _calificaciones[i].comentario,
+                          fecha: _calificaciones[i].fecha,
+                        ),
+                        if (i < _calificaciones.length - 1)
+                          const Divider(),
+                      ],
+                    ],
                   ],
                 ),
               ),
@@ -430,7 +499,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                         direction: Axis.horizontal,
                         allowHalfRating: false,
                         itemCount: 5,
-                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        itemPadding:
+                            const EdgeInsets.symmetric(horizontal: 4.0),
                         itemBuilder: (context, _) => const Icon(
                           Icons.star,
                           color: Colors.amber,
@@ -472,7 +542,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                      AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
                                 ),
                               )
                             : const Text(
