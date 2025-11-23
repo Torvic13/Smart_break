@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../screens/lista_espacios_screen.dart';
-import '../screens/filter_screen.dart';
 import '../models/categoria_espacio.dart';
 
 class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
@@ -35,25 +34,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: true,
       elevation: 0,
       actions: [
-        // 🔸 Primero el filtro
-        if (categorias != null && onApplyFilters != null)
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Filtrar espacios',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FilterScreen(
-                    categorias: categorias!,
-                    onApplyFilters: onApplyFilters!,
-                  ),
-                ),
-              );
-            },
-          ),
-
-        // 🔸 Luego la lista de espacios
+        // 🔸 Botón para la lista de espacios
         IconButton(
           icon: const Icon(Icons.list),
           tooltip: 'Lista de Espacios',
