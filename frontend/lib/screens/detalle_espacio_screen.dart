@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../models/espacio.dart';
 import '../models/disponibilidad.dart';
+import '../models/incidencia.dart';
 import '../dao/mock_disponibilidad_dao.dart';
+import '../dao/mock_incidencia_dao.dart';
+import '../services/incidencia_service.dart';
 
 class DetalleEspacioScreen extends StatefulWidget {
   final Espacio espacio;
@@ -16,15 +19,50 @@ class DetalleEspacioScreen extends StatefulWidget {
 class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
   final TextEditingController _comentarioController = TextEditingController();
   final MockDisponibilidadDAO _daoDisponibilidad = MockDisponibilidadDAO();
+  final MockIncidenciaDAO _daoIncidenciaMock = MockIncidenciaDAO();
+  final String _token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWlkIiwiZW1haWwiOiJ1c3VhcmlvQGVtYWlsLmNvbSIsInJvbCI6ImVzdHVkaWFudGUiLCJpYXQiOjE2MzIzMjMyMzIsImV4cCI6MTYzMjMzNjYzMn0.test'; // Token de prueba
 
   double _puntuacion = 0.0;
   bool _isSubmitting = false;
   String? _estadoSeleccionado; // disponible | ocupado
+  List<Incidencia> _incidencias = [];
 
   @override
   void initState() {
     super.initState();
     _cargarDisponibilidad();
+    _cargarIncidencias();
+  }
+
+  Future<void> _cargarIncidencias() async {
+    try {
+      print('Cargando incidencias para espacio: ${widget.espacio.idEspacio}');
+      // Intentar obtener del backend
+      final incidencias = await IncidenciaService.obtenerIncidenciasEspacio(
+        widget.espacio.idEspacio,
+        _token,
+      );
+      print('Incidencias obtenidas del backend: ${incidencias.length}');
+      if (mounted) {
+        setState(() {
+          _incidencias = incidencias;
+        });
+      }
+    } catch (e) {
+      print('Error al cargar incidencias del backend: $e');
+      // Fallback al mock
+      try {
+        final incidencias = await _daoIncidenciaMock.obtenerPorEspacio(widget.espacio.idEspacio);
+        print('Usando mock, incidencias: ${incidencias.length}');
+        if (mounted) {
+          setState(() {
+            _incidencias = incidencias;
+          });
+        }
+      } catch (e2) {
+        print('Error al cargar incidencias del mock: $e2');
+      }
+    }
   }
 
   Future<void> _cargarDisponibilidad() async {
@@ -102,8 +140,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
       SnackBar(
         content: Text(
           estado == 'disponible'
-              ? '✅ Espacio reportado como disponible'
-              : '🚫 Espacio reportado como ocupado',
+              ? 'Espacio reportado como disponible'
+              : 'Espacio reportado como ocupado',
         ),
         backgroundColor:
             estado == 'disponible' ? Colors.green : Colors.redAccent,
@@ -219,7 +257,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (tipoIncidenciaSeleccionado == null ||
                         descripcionController.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -231,11 +269,41 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                       return;
                     }
 
-                    // Aquí se guardaría el reporte en la base de datos
+                    // Crear la nueva incidencia vía API
+                    try {
+                      print('Enviando incidencia al backend...');
+                      await IncidenciaService.crearIncidencia(
+                        widget.espacio.idEspacio,
+                        tipoIncidenciaSeleccionado!,
+                        descripcionController.text,
+                        _token,
+                      );
+                      print('Incidencia creada en backend');
+                    } catch (e) {
+                      print('Error en backend, usando mock: $e');
+                      // Fallback al mock
+                      final novaIncidencia = Incidencia(
+                        idIncidencia: DateTime.now().millisecondsSinceEpoch.toString(),
+                        idEspacio: widget.espacio.idEspacio,
+                        nombreEspacio: widget.espacio.nombre,
+                        tipoIncidencia: tipoIncidenciaSeleccionado!,
+                        descripcion: descripcionController.text,
+                        fechaReporte: DateTime.now(),
+                        usuarioReporte: 'usuario@email.com',
+                        resuelta: false,
+                      );
+                      await _daoIncidenciaMock.crear(novaIncidencia);
+                      print('Incidencia guardada en mock');
+                    }
+
+                    print('Recargando lista de incidencias...');
+                    // Recargar la lista de incidencias
+                    await _cargarIncidencias();
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '✅ Incidencia reportada: $tipoIncidenciaSeleccionado',
+                          'Incidencia reportada: $tipoIncidenciaSeleccionado',
                         ),
                         backgroundColor: Colors.green,
                         behavior: SnackBarBehavior.floating,
@@ -254,6 +322,134 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoReportes() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reportes de incidencias'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: _incidencias.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 48,
+                            color: Colors.green[400],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No hay reportes pendientes',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _incidencias.length,
+                    itemBuilder: (context, index) {
+                      final inc = _incidencias[index];
+                      final diasAgo = DateTime.now().difference(inc.fechaReporte).inDays;
+                      final horasAgo = DateTime.now().difference(inc.fechaReporte).inHours;
+                      final minAgo = DateTime.now().difference(inc.fechaReporte).inMinutes;
+
+                      String fechaRelativa;
+                      if (minAgo < 60) {
+                        fechaRelativa = 'hace $minAgo minuto${minAgo != 1 ? 's' : ''}';
+                      } else if (horasAgo < 24) {
+                        fechaRelativa = 'hace $horasAgo hora${horasAgo != 1 ? 's' : ''}';
+                      } else {
+                        fechaRelativa = 'hace $diasAgo día${diasAgo != 1 ? 's' : ''}';
+                      }
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange[100],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      inc.tipoIncidencia,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange[800],
+                                      ),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    fechaRelativa,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Espacio: ${inc.nombreEspacio}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                inc.descripcion,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+          ],
         );
       },
     );
@@ -426,6 +622,23 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _mostrarDialogoReportes,
+                        icon: const Icon(Icons.list),
+                        label: Text('Ver reportes (${_incidencias.length})'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(color: Colors.orange, width: 1.5),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),

@@ -8,6 +8,9 @@ const { requireAuth, requireRole } = require('./middlewares/auth_middleware');
 // 🆕 Importar rutas de espacios
 const espacioRoutes = require('./routes/espacio_routes');
 
+// 🆕 Importar rutas de incidencias
+const incidenciaRoutes = require('./routes/incidencia_routes');
+
 const app = express();
 
 // Middlewares globales
@@ -26,6 +29,9 @@ app.use('/api/v1/auth', require('./routes/auth_routes'));
 
 // 🆕 Registrar rutas de espacios
 app.use('/api/v1/espacios', espacioRoutes);
+
+// 🆕 Registrar rutas de incidencias
+app.use('/api/v1/incidencias', incidenciaRoutes);
 
 // Ejemplo: ruta protegida
 app.get('/api/v1/me', requireAuth, (req, res) => {
