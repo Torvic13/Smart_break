@@ -4,7 +4,7 @@ class Ubicacion {
   final String idUbicacion;
   final double latitud;
   final double longitud;
-  final int piso;   // mantenemos int
+  final int piso;
 
   Ubicacion({
     required this.idUbicacion,
@@ -27,7 +27,6 @@ class Ubicacion {
   }
 
   factory Ubicacion.fromJson(Map<String, dynamic> json) {
-    // El valor puede venir como int o String → convertirlo a int sí o sí
     final pisoRaw = json['piso'];
 
     return Ubicacion(
@@ -40,7 +39,7 @@ class Ubicacion {
           : double.parse(json['longitud'].toString()),
       piso: (pisoRaw is int)
           ? pisoRaw
-          : int.tryParse(pisoRaw.toString()) ?? 0,   // 👈 evita error
+          : int.tryParse(pisoRaw.toString()) ?? 0,
     );
   }
 }

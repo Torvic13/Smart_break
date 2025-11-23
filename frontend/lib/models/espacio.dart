@@ -12,8 +12,7 @@ class Espacio {
   final Ubicacion ubicacion;
   final List<CaracteristicaEspacio> caracteristicas;
   final List<String>? _categoriaIds;
-  
-  // Getter que garantiza que siempre devuelve una lista no-null
+
   List<String> get categoriaIds => _categoriaIds ?? [];
 
   Espacio({
@@ -26,14 +25,6 @@ class Espacio {
     required this.caracteristicas,
     List<String>? categoriaIds,
   }) : _categoriaIds = categoriaIds ?? [];
-
-  void actualizarOcupacion(String estado, String fuente) {
-    // Mock implementation - no real functionality
-  }
-
-  void agregarCaracteristica(String idCaracteristica) {
-    // Mock implementation - no real functionality
-  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -54,15 +45,17 @@ class Espacio {
       nombre: json['nombre'],
       tipo: json['tipo'],
       nivelOcupacion: NivelOcupacion.values.firstWhere(
-        (e) => e.name == json['nivelOcupacion'],
+        (e) => e.name == (json['nivelOcupacion'] ?? 'medio'),
         orElse: () => NivelOcupacion.medio,
       ),
-      promedioCalificacion: json['promedioCalificacion'].toDouble(),
+      promedioCalificacion:
+          (json['promedioCalificacion'] as num?)?.toDouble() ?? 0.0,
       ubicacion: Ubicacion.fromJson(json['ubicacion']),
-      caracteristicas: (json['caracteristicas'] as List)
-          .map((c) => CaracteristicaEspacio.fromJson(c))
+      caracteristicas: (json['caracteristicas'] as List? ?? [])
+          .map((c) => CaracteristicaEspacio.fromJson(
+              c as Map<String, dynamic>))
           .toList(),
-      categoriaIds: json['categoriaIds'] != null 
+      categoriaIds: json['categoriaIds'] != null
           ? List<String>.from(json['categoriaIds'])
           : [],
     );

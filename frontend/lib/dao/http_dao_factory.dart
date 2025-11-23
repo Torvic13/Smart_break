@@ -1,3 +1,4 @@
+// lib/dao/http_dao_factory.dart
 import 'dao_factory.dart';
 
 // DAOs de autenticación / usuario
@@ -12,7 +13,7 @@ import 'calificacion_dao.dart';
 import 'reporte_ocupacion_dao.dart';
 import 'categoria_dao.dart';
 
-// NUEVO: Espacio HTTP DAO
+// HTTP DAOs
 import 'http_espacio_dao.dart';
 
 // Mocks
@@ -21,21 +22,21 @@ import 'mock_reporte_ocupacion_dao.dart';
 import 'mock_categoria_dao.dart';
 
 class HttpDAOFactory implements DAOFactory {
+  static const String _baseUrl = 'http://10.0.2.2:4000/api/v1';
+
   @override
   AuthDAO createAuthDAO() => HttpAuthDAO(
-        // Emulador Android → localhost = 10.0.2.2
-        baseUrl: 'http://10.0.2.2:4000/api/v1',
+        baseUrl: _baseUrl,
       );
 
   @override
   UsuarioDAO createUsuarioDAO() => HttpUsuarioDAO(
-        baseUrl: 'http://10.0.2.2:4000/api/v1',
+        baseUrl: _baseUrl,
       );
 
-  // 👉 AHORA ESPACIOS SE CARGAN DESDE EL BACKEND
+  // 👇 Espacios se cargan/crean desde el backend
   @override
-  EspacioDAO createEspacioDAO() =>
-      HttpEspacioDAO(baseUrl: 'http://10.0.2.2:4000/api/v1');
+  EspacioDAO createEspacioDAO() => HttpEspacioDAO(baseUrl: _baseUrl);
 
   @override
   CalificacionDAO createCalificacionDAO() => MockCalificacionDAO();

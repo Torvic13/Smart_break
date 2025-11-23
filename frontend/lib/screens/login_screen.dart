@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../dao/dao_factory.dart';
 import '../dao/auth_service.dart';
-import '../models/administrador_sistema.dart';  // 👈 importa el modelo admin
+import '../models/administrador_sistema.dart';
 import 'mapa_screen.dart';
 import 'register_screen.dart';
-import 'admin_profile_screen.dart';             // 👈 importa la pantalla admin
+import 'admin_profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,72 +30,74 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() {
-    _isLoading = true;
-    _errorMessage = null;
-  });
-
-  try {
-    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
-    final authDao = daoFactory.createAuthDAO();
-
-    final usuario = await authDao.iniciarSesion(
-      email: _emailController.text,
-      pass: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    if (usuario == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Credenciales inválidas';
-      });
-      return;
-    }
-
-    // Guardamos usuario en AuthService (y eventualmente el token)
-    AuthService().setUsuario(usuario);
-
-    // Navegación según tipo
-    if (usuario is AdministradorSistema) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const AdminProfileScreen(),
-        ),
-        (route) => false,
-      );
-    } else {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MapaScreen(),
-        ),
-        (route) => false,
-      );
-    }
-  } catch (e) {
-    if (!mounted) return;
     setState(() {
-      _errorMessage = 'Error al iniciar sesión: ${e.toString()}';
+      _isLoading = true;
+      _errorMessage = null;
     });
-  } finally {
-    if (mounted) {
+
+    try {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      final authDao = daoFactory.createAuthDAO();
+
+      // HttpAuthDAO YA guarda usuario + token en AuthService
+      final usuario = await authDao.iniciarSesion(
+        email: _emailController.text.trim(),
+        pass: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      if (usuario == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Credenciales inválidas';
+        });
+        return;
+      }
+
+      // 🚫 YA NO llamamos AuthService().setUsuario(usuario);
+      // (Opcional: logs para verificar)
+      print('Usuario logueado: ${usuario.email}');
+      print('Token en AuthService: ${AuthService().token}');
+
+      // Navegación según tipo
+      if (usuario is AdministradorSistema) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminProfileScreen(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MapaScreen(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _isLoading = false;
+        _errorMessage = 'Error al iniciar sesión: ${e.toString()}';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
-    const primaryOrange = Color(0xFFF97316); 
-    const lightOrangeBackground = Color.fromARGB(255, 246, 221, 186); 
+    const primaryOrange = Color(0xFFF97316);
+    const lightOrangeBackground = Color.fromARGB(255, 246, 221, 186);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -102,13 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: primaryOrange), 
+          icon: const Icon(Icons.arrow_back, color: primaryOrange),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       extendBodyBehindAppBar: true,
       body: Container(
-        color: Colors.white, 
+        color: Colors.white,
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -121,13 +124,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // --- ICONO DEL MAPA (LOGO) ---
                       Center(
                         child: Container(
                           width: 160,
                           height: 160,
                           decoration: BoxDecoration(
-                            color: lightOrangeBackground, 
+                            color: lightOrangeBackground,
                             borderRadius: BorderRadius.circular(30),
                             boxShadow: const [
                               BoxShadow(
@@ -139,17 +141,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           margin: const EdgeInsets.only(bottom: 32.0),
                           child: const Icon(
-                            Icons.map, 
+                            Icons.map,
                             size: 100,
                             color: primaryOrange,
                           ),
                         ),
                       ),
-                      // --- FIN: ICONO DEL MAPA (LOGO) ---
                       Text(
                         '¡Bienvenido de nuevo!',
                         style: TextStyle(
-                          color: Colors.grey.shade800, 
+                          color: Colors.grey.shade800,
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                         ),
@@ -175,7 +176,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _emailController,
                               decoration: const InputDecoration(
                                 labelText: 'Correo electrónico',
-                                prefixIcon: Icon(Icons.email, color: primaryOrange), 
+                                prefixIcon:
+                                    Icon(Icons.email, color: primaryOrange),
                               ),
                               keyboardType: TextInputType.emailAddress,
                               validator: (value) {
@@ -193,7 +195,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _passwordController,
                               decoration: const InputDecoration(
                                 labelText: 'Contraseña',
-                                prefixIcon: Icon(Icons.lock, color: primaryOrange), 
+                                prefixIcon:
+                                    Icon(Icons.lock, color: primaryOrange),
                               ),
                               obscureText: true,
                               validator: (value) {
@@ -223,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryOrange, 
+                          backgroundColor: primaryOrange,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -237,8 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               )
                             : const Text(
@@ -248,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
-                            ),
+                              ),
                       ),
                       const SizedBox(height: 16),
                       TextButton(
@@ -256,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           '¿Olvidaste tu contraseña?',
                           style: TextStyle(
-                            color: primaryOrange, 
+                            color: primaryOrange,
                             fontSize: 14,
                           ),
                         ),
@@ -277,7 +280,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const RegisterScreen(),
+                                  builder: (context) =>
+                                      const RegisterScreen(),
                                 ),
                               );
                             },
