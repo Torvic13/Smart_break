@@ -22,6 +22,7 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
   List<Espacio> _espacios = [];
   List<CategoriaEspacio> _categorias = [];
   Set<String> _categoriasSeleccionadas = {};
+  bool _filtrosExpandidos = true;
 
   @override
   void didChangeDependencies() {
@@ -77,14 +78,89 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
     });
   }
 
+  Map<String, List<CategoriaEspacio>> _agruparCategorias() {
+    final grupos = <String, List<CategoriaEspacio>>{
+      'Tipos de Espacio': [],
+      'Nivel de Ruido': [],
+      'Servicios': [],
+      'Tamaño de Grupo': [],
+      'Horario': [],
+    };
+
+    for (var categoria in _categorias) {
+      final nombre = categoria.nombre.toLowerCase();
+      
+      if (nombre.contains('estudio') || nombre.contains('biblioteca') || 
+          nombre.contains('cafetería') || nombre.contains('patio') || 
+          nombre.contains('sala') || nombre.contains('auditorio') ||
+          nombre.contains('jardín') || nombre.contains('comprobadora')) {
+        grupos['Tipos de Espacio']!.add(categoria);
+      } else if (nombre.contains('silencioso') || nombre.contains('moderado') || 
+                 nombre.contains('ruidoso')) {
+        grupos['Nivel de Ruido']!.add(categoria);
+      } else if (nombre.contains('aire acondicionado') || nombre.contains('enchufes') || 
+                 nombre.contains('computadora') || nombre.contains('wifi')) {
+        grupos['Servicios']!.add(categoria);
+      } else if (nombre.contains('individual') || nombre.contains('pequeño') || 
+                 nombre.contains('grupo grande')) {
+        grupos['Tamaño de Grupo']!.add(categoria);
+      } else if (nombre.contains('mañana') || nombre.contains('tarde') || 
+                 nombre.contains('noche')) {
+        grupos['Horario']!.add(categoria);
+      }
+    }
+
+    return grupos..removeWhere((_, v) => v.isEmpty);
+  }
+
+  Widget _buildFilterSection(String title, List<CategoriaEspacio> categorias) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 8.0),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 4.0,
+          children: categorias.map((categoria) {
+            final isSelected =
+                _categoriasSeleccionadas.contains(categoria.idCategoria);
+            return FilterChip(
+              selected: isSelected,
+              label: Text(categoria.nombre),
+              backgroundColor: Colors.grey[200],
+              selectedColor: Colors.orange[200],
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.black87 : Colors.grey[700],
+              ),
+              onSelected: (bool selected) {
+                _toggleCategoria(categoria.idCategoria);
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final espaciosFiltrados = _filtrarEspacios();
+    final gruposCategorias = _agruparCategorias();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Filtrar por Categorías'),
-        backgroundColor: const Color(0xFF1976D2),
+        backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -93,67 +169,102 @@ class _FilteredSpacesScreenState extends State<FilteredSpacesScreen> {
       ),
       body: Column(
         children: [
-          // Sección de filtros de categorías
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text(
-                    'Filtrar por categorías:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+          // Sección de filtros colapsables
+          ExpansionTile(
+            title: const Text(
+              'Filtrar por categorías',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            initiallyExpanded: _filtrosExpandidos,
+            onExpansionChanged: (expanded) {
+              setState(() {
+                _filtrosExpandidos = expanded;
+              });
+            },
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ...gruposCategorias.entries.map((entry) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: _buildFilterSection(entry.key, entry.value),
+                        );
+                      }).toList(),
+                    ],
                   ),
                 ),
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 4.0,
-                  children: _categorias.map((categoria) {
-                    final isSelected =
-                        _categoriasSeleccionadas.contains(categoria.idCategoria);
-                    return FilterChip(
-                      selected: isSelected,
-                      label: Text(categoria.nombre),
-                      onSelected: (bool selected) {
-                        _toggleCategoria(categoria.idCategoria);
-                      },
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const Divider(),
-          // Lista de espacios filtrados
+          const Divider(height: 0),
+          // Lista de espacios filtrados - EXPANDIDA
           Expanded(
-            child: ListView.builder(
-              itemCount: espaciosFiltrados.length,
-              itemBuilder: (context, index) {
-                final espacio = espaciosFiltrados[index];
-                final categoriasEspacio = _categorias
-                    .where((c) => espacio.categoriaIds.contains(c.idCategoria))
-                    .map((c) => c.nombre)
-                    .join(', ');
+            child: espaciosFiltrados.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Text(
+                        'No se encontraron espacios con los filtros seleccionados',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: espaciosFiltrados.length,
+                    itemBuilder: (context, index) {
+                      final espacio = espaciosFiltrados[index];
+                      final categoriasEspacio = _categorias
+                          .where((c) =>
+                              espacio.categoriaIds.contains(c.idCategoria))
+                          .map((c) => c.nombre)
+                          .join(', ');
 
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                  child: ListTile(
-                    title: Text(espacio.nombre),
-                    subtitle: Text(categoriasEspacio),
-                    trailing:
-                        Icon(_getIconForOcupacion(espacio.nivelOcupacion)),
-                    onTap: () {
-                      // Navegar al detalle del espacio si es necesario
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 8.0, vertical: 6.0),
+                        elevation: 2,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 8.0),
+                          title: Text(
+                            espacio.nombre,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              categoriasEspacio,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                          trailing: Icon(
+                            _getIconForOcupacion(espacio.nivelOcupacion),
+                            color: Colors.orange,
+                          ),
+                          onTap: () {
+                            // Navegar al detalle del espacio si es necesario
+                          },
+                        ),
+                      );
                     },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
