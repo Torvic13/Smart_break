@@ -26,6 +26,10 @@ const incidenciaSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    nombreEspacio: {
+      type: String,
+      required: true,
+    },
     tipoIncidencia: {
       type: String,
       enum: TIPOS_INCIDENCIA,

@@ -66,6 +66,7 @@ async function crearIncidencia(req, res) {
     // Crear la incidencia
     const nueva = await Incidencia.create({
       idEspacio,
+      nombreEspacio: espacio.nombre,
       tipoIncidencia,
       descripcion,
       usuarioReporte,
