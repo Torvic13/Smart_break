@@ -143,6 +143,122 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     });
   }
 
+  void _mostrarDialogoReporteIncidencia() {
+    final TextEditingController descripcionController = TextEditingController();
+    String? tipoIncidenciaSeleccionado;
+
+    final tiposIncidencia = [
+      'Daño en infraestructura',
+      'Falta de limpieza',
+      'Ruido excesivo',
+      'Problemas de temperatura',
+      'Falta de servicios (WiFi, enchufes)',
+      'Seguridad',
+      'Otro',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Reportar incidencia'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tipo de incidencia:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<String>(
+                      isExpanded: true,
+                      hint: const Text('Selecciona un tipo'),
+                      value: tipoIncidenciaSeleccionado,
+                      onChanged: (String? newValue) {
+                        setStateDialog(() {
+                          tipoIncidenciaSeleccionado = newValue;
+                        });
+                      },
+                      items: tiposIncidencia.map<DropdownMenuItem<String>>(
+                        (String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        },
+                      ).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Descripción:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: descripcionController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Describe el problema con detalle',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (tipoIncidenciaSeleccionado == null ||
+                        descripcionController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Por favor completa todos los campos'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Aquí se guardaría el reporte en la base de datos
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '✅ Incidencia reportada: $tipoIncidenciaSeleccionado',
+                        ),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Reportar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -274,6 +390,48 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                         _buildEstadoButton('disponible', Colors.green),
                         _buildEstadoButton('ocupado', Colors.redAccent),
                       ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // === NUEVO BLOQUE: Reportar incidencia ===
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reportar problema o incidencia',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _mostrarDialogoReporteIncidencia,
+                        icon: const Icon(Icons.report_problem),
+                        label: const Text('Reportar incidencia'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
