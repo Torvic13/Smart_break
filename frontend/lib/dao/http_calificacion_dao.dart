@@ -10,11 +10,7 @@ class HttpCalificacionDAO implements CalificacionDAO {
 
   HttpCalificacionDAO({required this.baseUrl});
 
-  Uri _uriLista(String espacioId) =>
-      Uri.parse('$baseUrl/espacios/$espacioId/calificaciones');
-
-  Uri _uriDetalle(String idCalificacion) =>
-      Uri.parse('$baseUrl/calificaciones/$idCalificacion');
+  Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
   Map<String, String> _headers({bool auth = false}) {
     final headers = <String, String>{
@@ -25,89 +21,118 @@ class HttpCalificacionDAO implements CalificacionDAO {
       final token = AuthService().token;
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
-      } else {
-        throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
       }
     }
 
     return headers;
   }
 
-  Map<String, dynamic> _normalize(Map<String, dynamic> json) {
-    final normalized = Map<String, dynamic>.from(json);
+  Calificacion _fromJson(Map<String, dynamic> json) {
+    return Calificacion.fromJson(json);
+  }
 
-    if (normalized['fecha'] == null && normalized['fechaCreacion'] != null) {
-      normalized['fecha'] = normalized['fechaCreacion'];
-    }
-
-    normalized['estado'] ??= 'aprobada';
-
-    return normalized;
+  @override
+  Future<Calificacion?> obtenerPorId(String id) async {
+    throw UnimplementedError('obtenerPorId aún no se usa en la app');
   }
 
   @override
   Future<List<Calificacion>> obtenerPorEspacio(String espacioId) async {
+    // GET /api/v1/espacios/:idEspacio/calificaciones
     final resp = await http.get(
-      _uriLista(espacioId),
-      headers: _headers(),
+      _uri('/espacios/$espacioId/calificaciones'),
+      headers: _headers(auth: true),
     );
 
     if (resp.statusCode != 200) {
       throw Exception(
-        'Error al obtener calificaciones (${resp.statusCode}): ${resp.body}',
+        'Error al obtener calificaciones del espacio '
+        '(${resp.statusCode}): ${resp.body}',
       );
     }
 
     final decoded = jsonDecode(resp.body);
-    if (decoded is! List) return [];
+    final list = decoded is List
+        ? decoded
+        : (decoded['calificaciones'] as List? ?? []);
 
-    return decoded
-        .map<Calificacion>((e) =>
-            Calificacion.fromJson(_normalize(e as Map<String, dynamic>)))
+    return list
+        .map((e) => _fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<Calificacion>> obtenerPorUsuario(String usuarioId) async {
+    throw UnimplementedError('obtenerPorUsuario aún no se usa en la app');
+  }
+
+  @override
+  Future<List<Calificacion>> obtenerTodas() async {
+    // GET /api/v1/calificaciones  (solo admin)
+    final resp = await http.get(
+      _uri('/calificaciones'),
+      headers: _headers(auth: true),
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al obtener todas las calificaciones '
+        '(${resp.statusCode}): ${resp.body}',
+      );
+    }
+
+    final decoded = jsonDecode(resp.body);
+    final list = decoded is List
+        ? decoded
+        : (decoded['calificaciones'] as List? ?? []);
+
+    return list
+        .map((e) => _fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   @override
   Future<void> crear(Calificacion calificacion) async {
-    final espacioId = calificacion.idEspacio;
-    if (espacioId == null || espacioId.isEmpty) {
-      throw Exception('idEspacio es requerido para crear calificación');
+    if (calificacion.idEspacio == null) {
+      throw Exception('idEspacio requerido para crear calificación');
     }
 
+    final body = {
+      'puntuacion': calificacion.puntuacion,
+      'comentario': calificacion.comentario,
+    };
+
     final resp = await http.post(
-      _uriLista(espacioId),
+      _uri('/espacios/${calificacion.idEspacio}/calificaciones'),
       headers: _headers(auth: true),
-      body: jsonEncode({
-        'puntuacion': calificacion.puntuacion,
-        'comentario': calificacion.comentario,
-      }),
+      body: jsonEncode(body),
     );
 
     if (resp.statusCode != 201) {
       throw Exception(
-        'Error al crear calificación (${resp.statusCode}): ${resp.body}',
+        'Error al crear calificación '
+        '(${resp.statusCode}): ${resp.body}',
       );
     }
   }
 
   @override
   Future<void> actualizar(Calificacion calificacion) async {
-    if (calificacion.idCalificacion.isEmpty) {
-      throw Exception('idCalificacion requerido para actualizar');
-    }
+    final body = {
+      'puntuacion': calificacion.puntuacion,
+      'comentario': calificacion.comentario,
+    };
 
     final resp = await http.put(
-      _uriDetalle(calificacion.idCalificacion),
+      _uri('/calificaciones/${calificacion.idCalificacion}'),
       headers: _headers(auth: true),
-      body: jsonEncode({
-        'puntuacion': calificacion.puntuacion,
-        'comentario': calificacion.comentario,
-      }),
+      body: jsonEncode(body),
     );
 
     if (resp.statusCode != 200) {
       throw Exception(
-        'Error al actualizar calificación (${resp.statusCode}): ${resp.body}',
+        'Error al actualizar calificación '
+        '(${resp.statusCode}): ${resp.body}',
       );
     }
   }
@@ -115,31 +140,15 @@ class HttpCalificacionDAO implements CalificacionDAO {
   @override
   Future<void> eliminar(String id) async {
     final resp = await http.delete(
-      _uriDetalle(id),
+      _uri('/calificaciones/$id'),
       headers: _headers(auth: true),
     );
 
     if (resp.statusCode != 200) {
       throw Exception(
-        'Error al eliminar calificación (${resp.statusCode}): ${resp.body}',
+        'Error al eliminar calificación '
+        '(${resp.statusCode}): ${resp.body}',
       );
     }
-  }
-
-  // No los usas aún
-  @override
-  Future<Calificacion?> obtenerPorId(String id) {
-    throw UnimplementedError('obtenerPorId no está implementado en HTTP DAO');
-  }
-
-  @override
-  Future<List<Calificacion>> obtenerPorUsuario(String usuarioId) {
-    throw UnimplementedError(
-        'obtenerPorUsuario no está implementado en HTTP DAO');
-  }
-
-  @override
-  Future<List<Calificacion>> obtenerTodas() {
-    throw UnimplementedError('obtenerTodas no está implementado en HTTP DAO');
   }
 }

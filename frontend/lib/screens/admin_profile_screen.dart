@@ -3,7 +3,8 @@ import '../dao/auth_service.dart';
 import '../models/administrador_sistema.dart';
 import 'gestionar_categorias_screen.dart';
 import 'welcome_screen.dart';
-import 'crear_espacio_screen.dart'; // 
+import 'crear_espacio_screen.dart';
+import 'gestionar_comentarios_screen.dart'; // 👈 NUEVO
 
 /// Pantalla de perfil para administradores del sistema
 class AdminProfileScreen extends StatefulWidget {
@@ -104,7 +105,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             // Sección de identidad del administrador
             _buildAdminIdentitySection(),
             const SizedBox(height: 32),
-            
+
             // Opciones de administración
             const Text(
               'Opciones de Administración',
@@ -115,7 +116,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Tarjeta de Gestionar Categorías
             _buildAdminOptionCard(
               title: 'Gestionar Categorías',
@@ -130,10 +131,10 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                 );
               },
             ),
-            
+
             const SizedBox(height: 12),
-            
-            // 🔹 Tarjeta de Gestionar Espacios → CrearEspacioScreen
+
+            // Tarjeta de Gestionar Espacios → CrearEspacioScreen
             _buildAdminOptionCard(
               title: 'Gestionar Espacios',
               subtitle: 'Crear, editar y eliminar espacios',
@@ -143,15 +144,15 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => CrearEspacioScreen(
-                      usuarioActual: _adminProfile!, // 
+                      usuarioActual: _adminProfile!, //
                     ),
                   ),
                 );
               },
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Tarjeta de Gestionar Usuarios
             _buildAdminOptionCard(
               title: 'Gestionar Usuarios',
@@ -165,9 +166,26 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                 );
               },
             ),
-            
+
+            const SizedBox(height: 12),
+
+            // 👇 NUEVA Tarjeta de Gestionar Comentarios
+            _buildAdminOptionCard(
+              title: 'Gestionar Comentarios',
+              subtitle: 'Revisar, editar y eliminar comentarios',
+              icon: Icons.rate_review,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GestionarComentariosScreen(),
+                  ),
+                );
+              },
+            ),
+
             const SizedBox(height: 32),
-            
+
             // Botón de cerrar sesión
             SizedBox(
               width: double.infinity,

@@ -6,18 +6,55 @@ async function listarCalificacionesPorEspacio(req, res) {
   try {
     const { idEspacio } = req.params;
 
-    const calificaciones = await Calificacion
-      .find({ idEspacio })
-      .sort({ fechaCreacion: -1 });
+    const calificaciones = await Calificacion.aggregate([
+      { $match: { idEspacio } },
+      { $sort: { fechaCreacion: -1 } },
+      {
+        $lookup: {
+          from: 'usuarios',
+          localField: 'idUsuario',
+          foreignField: 'idUsuario',
+          as: 'usuario',
+        },
+      },
+      { $unwind: { path: '$usuario', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'espacios',
+          localField: 'idEspacio',
+          foreignField: 'idEspacio',
+          as: 'espacio',
+        },
+      },
+      { $unwind: { path: '$espacio', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          idCalificacion: 1,
+          idEspacio: 1,
+          idUsuario: 1,
+          puntuacion: 1,
+          comentario: 1,
+          fechaCreacion: 1,
+          estado: 1,
+          codigoAlumno: '$usuario.codigoAlumno',
+          nombreCompleto: '$usuario.nombreCompleto',
+          email: '$usuario.email',
+          nombreEspacio: '$espacio.nombre', // 👈 nuevo
+        },
+      },
+    ]);
 
     return res.json(calificaciones);
   } catch (err) {
     console.error(err);
     return res
       .status(500)
-      .json({ message: 'Error al listar calificaciones', error: err.message });
+      .json({ message: 'Error al listar calificaciones por espacio', error: err.message });
   }
 }
+
+
 
 // POST /api/v1/espacios/:idEspacio/calificaciones
 // requiere requireAuth y rol estudiante/admin
@@ -178,8 +215,62 @@ async function eliminarCalificacion(req, res) {
       .json({ message: 'Error al eliminar calificación', error: err.message });
   }
 }
+// Listar todas las calificaciones (solo admin)
+async function listarTodasCalificaciones(_req, res) {
+  try {
+    const calificaciones = await Calificacion.aggregate([
+      { $sort: { fechaCreacion: -1 } },
+      // 👇 Join con usuarios
+      {
+        $lookup: {
+          from: 'usuarios',
+          localField: 'idUsuario',
+          foreignField: 'idUsuario',
+          as: 'usuario',
+        },
+      },
+      { $unwind: { path: '$usuario', preserveNullAndEmptyArrays: true } },
+      // 👇 Join con espacios
+      {
+        $lookup: {
+          from: 'espacios',
+          localField: 'idEspacio',
+          foreignField: 'idEspacio',
+          as: 'espacio',
+        },
+      },
+      { $unwind: { path: '$espacio', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          idCalificacion: 1,
+          idEspacio: 1,
+          idUsuario: 1,
+          puntuacion: 1,
+          comentario: 1,
+          fechaCreacion: 1,
+          estado: 1,
+          codigoAlumno: '$usuario.codigoAlumno',
+          nombreCompleto: '$usuario.nombreCompleto',
+          email: '$usuario.email',
+          // 👇 nuevo campo
+          nombreEspacio: '$espacio.nombre',
+        },
+      },
+    ]);
+
+    return res.json(calificaciones);
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al listar calificaciones', error: err.message });
+  }
+}
+
 
 module.exports = {
+  listarTodasCalificaciones,
   listarCalificacionesPorEspacio,
   crearCalificacion,
   actualizarCalificacion,

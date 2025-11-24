@@ -2,8 +2,13 @@ enum EstadoCalificacion { pendiente, aprobada, rechazada }
 
 class Calificacion {
   String idCalificacion;
-  String? idEspacio; // del backend
-  String? idUsuario; // del backend
+  String? idEspacio;
+  String? idUsuario;
+
+  String? codigoAlumno;   // viene del usuario
+  String? nombreUsuario;  // nombreCompleto
+  String? nombreEspacio;  // 👈 nuevo campo
+
   int puntuacion;
   String comentario;
   DateTime fecha;
@@ -11,15 +16,17 @@ class Calificacion {
 
   Calificacion({
     required this.idCalificacion,
+    this.idEspacio,
+    this.idUsuario,
+    this.codigoAlumno,
+    this.nombreUsuario,
+    this.nombreEspacio,
     required this.puntuacion,
     required this.comentario,
     required this.fecha,
     this.estado = EstadoCalificacion.pendiente,
-    this.idEspacio,
-    this.idUsuario,
   });
 
-  /// Permite editar campos dinámicamente (útil en DAO mock)
   void editar(Map<String, dynamic> nuevosDatos) {
     if (nuevosDatos.containsKey('puntuacion')) {
       puntuacion = nuevosDatos['puntuacion'];
@@ -32,12 +39,14 @@ class Calificacion {
     }
   }
 
-  /// Convierte el objeto a JSON (para almacenamiento local, etc.)
   Map<String, dynamic> toJson() {
     return {
       'idCalificacion': idCalificacion,
       'idEspacio': idEspacio,
       'idUsuario': idUsuario,
+      'codigoAlumno': codigoAlumno,
+      'nombreCompleto': nombreUsuario,
+      'nombreEspacio': nombreEspacio,
       'puntuacion': puntuacion,
       'comentario': comentario,
       'fecha': fecha.toIso8601String(),
@@ -45,24 +54,24 @@ class Calificacion {
     };
   }
 
-  /// Crea un objeto desde JSON (soporta `fecha` o `fechaCreacion`)
   factory Calificacion.fromJson(Map<String, dynamic> json) {
-    final fechaStr =
-        (json['fecha'] ?? json['fechaCreacion']) as String? ?? '';
+    String? _s(dynamic v) => v == null ? null : v.toString();
 
-    final estadoStr = (json['estado'] as String?) ?? 'aprobada';
+    final fechaStr = _s(json['fechaCreacion'] ?? json['fecha']);
+    final fecha = fechaStr != null ? DateTime.parse(fechaStr) : DateTime.now();
 
     return Calificacion(
-      idCalificacion: json['idCalificacion'] as String,
-      idEspacio: json['idEspacio'] as String?,
-      idUsuario: json['idUsuario'] as String?,
-      puntuacion: json['puntuacion'] as int,
-      comentario: json['comentario'] as String? ?? '',
-      fecha: fechaStr.isNotEmpty
-          ? DateTime.parse(fechaStr)
-          : DateTime.now(),
+      idCalificacion: _s(json['idCalificacion']) ?? '',
+      idEspacio: _s(json['idEspacio']),
+      idUsuario: _s(json['idUsuario']),
+      codigoAlumno: _s(json['codigoAlumno']),
+      nombreUsuario: _s(json['nombreCompleto']),
+      nombreEspacio: _s(json['nombreEspacio']),
+      puntuacion: (json['puntuacion'] as num?)?.toInt() ?? 0,
+      comentario: (json['comentario'] ?? '') as String,
+      fecha: fecha,
       estado: EstadoCalificacion.values.firstWhere(
-        (e) => e.name == estadoStr,
+        (e) => e.name == (json['estado'] ?? 'pendiente'),
         orElse: () => EstadoCalificacion.pendiente,
       ),
     );

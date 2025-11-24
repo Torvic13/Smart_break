@@ -1,5 +1,7 @@
 const express = require('express');
+
 const {
+  listarTodasCalificaciones,
   listarCalificacionesPorEspacio,
   crearCalificacion,
   actualizarCalificacion,
@@ -9,8 +11,20 @@ const { requireAuth, requireRole } = require('../middlewares/auth_middleware');
 
 const router = express.Router();
 
+// GET /api/v1/calificaciones  (solo admin, para la pantalla "Gestionar Comentarios")
+router.get(
+  '/calificaciones',
+  requireAuth,
+  requireRole('admin'),
+  listarTodasCalificaciones
+);
+
 // GET /api/v1/espacios/:idEspacio/calificaciones
-router.get('/espacios/:idEspacio/calificaciones', listarCalificacionesPorEspacio);
+router.get(
+  '/espacios/:idEspacio/calificaciones',
+  requireAuth,
+  listarCalificacionesPorEspacio
+);
 
 // POST /api/v1/espacios/:idEspacio/calificaciones
 router.post(
