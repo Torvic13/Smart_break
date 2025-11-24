@@ -16,11 +16,16 @@ class AmigosScreen extends StatefulWidget {
 class _AmigosScreenState extends State<AmigosScreen> {
   List<Estudiante> _amigos = [];
   bool _isLoading = true;
+  bool _ubicacionCompartida = false;
   final TextEditingController _codigoController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    final usuario = AuthService().usuarioActual;
+    if (usuario is Estudiante) {
+      _ubicacionCompartida = usuario.ubicacionCompartida;
+    }
     _cargarAmigos();
   }
 
@@ -290,9 +295,16 @@ class _AmigosScreenState extends State<AmigosScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _amigos.isEmpty
-              ? _buildEmptyState()
-              : _buildListaAmigos(),
+          : Column(
+              children: [
+                _buildControlUbicacion(),
+                Expanded(
+                  child: _amigos.isEmpty
+                      ? _buildEmptyState()
+                      : _buildListaAmigos(),
+                ),
+              ],
+            ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1,
         onTap: (index) {
@@ -446,17 +458,147 @@ class _AmigosScreenState extends State<AmigosScreen> {
                   ),
                 ],
               ),
-              trailing: Icon(
-                amigo.ubicacionCompartida
-                    ? Icons.location_on
-                    : Icons.location_off,
-                color: amigo.ubicacionCompartida
-                    ? const Color(0xFF10B981)
-                    : Colors.grey,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (amigo.ubicacionCompartida)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on, size: 14, color: Colors.green.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Ubicación',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    const Icon(Icons.location_off, color: Colors.grey, size: 20),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right),
+                ],
               ),
+              onTap: () {
+                if (amigo.ubicacionCompartida) {
+                  // Navegar al mapa con la ubicación del amigo
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ver ubicación de ${amigo.nombreCompleto}'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${amigo.nombreCompleto} no comparte su ubicación'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildControlUbicacion() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: SwitchListTile(
+          title: const Text(
+            'Compartir mi ubicación',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            _ubicacionCompartida 
+              ? '🟢 Tus amigos pueden ver tu ubicación' 
+              : '🔴 Tu ubicación está oculta',
+            style: TextStyle(
+              fontSize: 13,
+              color: _ubicacionCompartida ? Colors.green.shade700 : Colors.red.shade700,
+            ),
+          ),
+          value: _ubicacionCompartida,
+          activeColor: const Color(0xFFF97316),
+          onChanged: (value) async {
+            try {
+              final usuario = AuthService().usuarioActual;
+              if (usuario == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Debes iniciar sesión')),
+                );
+                return;
+              }
+              
+              setState(() => _ubicacionCompartida = value);
+              
+              final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+              final usuarioDAO = daoFactory.createUsuarioDAO() as HttpUsuarioDAO;
+              
+              await usuarioDAO.actualizarUbicacionCompartida(
+                usuario.idUsuario, 
+                value
+              );
+              
+              // Actualizar en AuthService
+              if (usuario is Estudiante) {
+                final actualizado = Estudiante(
+                  idUsuario: usuario.idUsuario,
+                  email: usuario.email,
+                  passwordHash: usuario.passwordHash,
+                  fechaCreacion: usuario.fechaCreacion,
+                  estado: usuario.estado,
+                  codigoAlumno: usuario.codigoAlumno,
+                  nombreCompleto: usuario.nombreCompleto,
+                  ubicacionCompartida: value,
+                  carrera: usuario.carrera,
+                  amigosIds: usuario.amigosIds,
+                );
+                AuthService().actualizarUsuario(actualizado);
+              }
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(value 
+                      ? '✅ Ubicación compartida con amigos' 
+                      : '🔒 Ubicación oculta'),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: value ? Colors.green : Colors.grey,
+                  ),
+                );
+              }
+            } catch (e) {
+              setState(() => _ubicacionCompartida = !value);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: ${e.toString().replaceAll("Exception: ", "")}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+        ),
       ),
     );
   }

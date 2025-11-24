@@ -4,7 +4,8 @@ const {
   listarUsuarios, 
   buscarPorCodigo, 
   agregarAmigo, 
-  obtenerAmigos 
+  obtenerAmigos,
+  actualizarUbicacionCompartida
 } = require('../controllers/user_controller');
 
 const router = express.Router();
@@ -23,5 +24,8 @@ router.post('/:idUsuario/amigos', agregarAmigo);
 
 // GET /api/v1/usuarios/:idUsuario/amigos
 router.get('/:idUsuario/amigos', obtenerAmigos);
+
+// PUT /api/v1/usuarios/:idUsuario/ubicacion
+router.put('/:idUsuario/ubicacion', actualizarUbicacionCompartida);
 
 module.exports = router;

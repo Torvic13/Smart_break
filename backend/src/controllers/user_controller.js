@@ -138,4 +138,46 @@ async function obtenerAmigos(req, res) {
   }
 }
 
-module.exports = { crearUsuario, listarUsuarios, buscarPorCodigo, agregarAmigo, obtenerAmigos };
+// PUT /api/v1/usuarios/:idUsuario/ubicacion
+async function actualizarUbicacionCompartida(req, res) {
+  try {
+    const { idUsuario } = req.params;
+    const { ubicacionCompartida } = req.body;
+
+    if (typeof ubicacionCompartida !== 'boolean') {
+      return res.status(400).json({ 
+        message: 'ubicacionCompartida debe ser booleano' 
+      });
+    }
+
+    const usuario = await User.findOneAndUpdate(
+      { idUsuario },
+      { ubicacionCompartida },
+      { new: true }
+    ).select('-passwordHash');
+
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    return res.json({ 
+      message: 'Configuración actualizada', 
+      usuario: usuario.toJSON() 
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ 
+      message: 'Error al actualizar ubicación', 
+      error: err.message 
+    });
+  }
+}
+
+module.exports = { 
+  crearUsuario, 
+  listarUsuarios, 
+  buscarPorCodigo, 
+  agregarAmigo, 
+  obtenerAmigos,
+  actualizarUbicacionCompartida
+};

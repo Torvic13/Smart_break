@@ -185,4 +185,28 @@ class HttpUsuarioDAO implements UsuarioDAO {
         return EstadoUsuario.activo;
     }
   }
+
+  @override
+  Future<void> actualizarUbicacionCompartida(String idUsuario, bool compartir) async {
+    try {
+      final url = Uri.parse('$baseUrl/usuarios/$idUsuario/ubicacion');
+      final token = AuthService().token;
+      
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'ubicacionCompartida': compartir}),
+      );
+
+      if (response.statusCode != 200) {
+        final data = jsonDecode(response.body);
+        throw Exception(data['message'] ?? 'Error al actualizar ubicación');
+      }
+    } catch (e) {
+      throw Exception('Error al actualizar ubicación: $e');
+    }
+  }
 }
