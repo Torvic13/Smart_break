@@ -1,22 +1,65 @@
+# =========================
+#   Node.js / SmartBreak
+# =========================
+
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Archivos de entorno
 .env
-env
-Gemfile.lock
-/vendor/
-/logs/*
-!/logs/README.md
-composer.lock
-node_modules
-package-lock.json
-public/bower_components
-public/dist
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Carpetas de build del backend
+dist/
+build/
+.cache/
+
+# Cobertura de Jest
+coverage/
+.jest/
+jest-cache/
+jest-results.json
+baseline-*/
+*.snap
+
+# Archivos generados por pruebas
+*.ps1
+*.cmd
+*.exe
+
+# Frontend (Flutter / Web)
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+.pub-cache/
+build/
+web/wasm/
+
+# VS Code
+.vscode/
+.idea/
+
+# Sistema
 .DS_Store
-*.ods#
-.env
-*.lock
+Thumbs.db
+
+# Uploads
+public/uploads
 public/build
 public/fonts
-public/uploads
-tmp
-log
-
+public/dist
 public/vendor
+public/bower_components
+
+# Otros
+tmp/
+logs/
