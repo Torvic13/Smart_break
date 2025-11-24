@@ -51,6 +51,9 @@ class _DetalleEspacioCategoriasScreenState
     });
 
     try {
+      print('Cargando categorías para espacio: ${widget.espacio.nombre}');
+      print('categoriaIds del espacio: ${widget.espacio.categoriaIds}');
+      
       Map<TipoCategoria, List<CategoriaEspacio>> tempMap = {};
 
       // Recorre todos los tipos de categoría
@@ -63,14 +66,18 @@ class _DetalleEspacioCategoriasScreenState
 
         if (categoriasAsignadas.isNotEmpty) {
           tempMap[tipo] = categoriasAsignadas;
+          print('Categorías de tipo $tipo: ${categoriasAsignadas.map((c) => c.nombre).toList()}');
         }
       }
+
+      print('Total tipos con categorías: ${tempMap.length}');
 
       setState(() {
         _categoriasPorTipo = tempMap;
         _isLoading = false;
       });
     } catch (e) {
+      print('Error al cargar categorías: $e');
       setState(() {
         _errorMessage = 'Error al cargar categorías: $e';
         _isLoading = false;

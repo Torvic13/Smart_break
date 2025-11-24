@@ -171,13 +171,58 @@ Future<void> crear(Espacio espacio) async {
 
   @override
   Future<void> actualizar(Espacio espacio) async {
-    throw UnimplementedError(
-        'actualizar() aún no está implementado en HttpEspacioDAO');
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.put(
+      _uri('/${espacio.idEspacio}'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(espacio.toJson()),
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al actualizar espacio (${resp.statusCode}): ${resp.body}',
+      );
+    }
   }
 
   @override
   Future<void> eliminar(String id) async {
-    throw UnimplementedError(
-        'eliminar() aún no está implementado en HttpEspacioDAO');
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.delete(
+      _uri('/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al eliminar espacio (${resp.statusCode}): ${resp.body}',
+      );
+    }
   }
 }

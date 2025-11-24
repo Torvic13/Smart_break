@@ -6,7 +6,7 @@ import '../models/estudiante.dart';
 import '../models/usuario.dart';
 import 'gestionar_categorias_screen.dart';
 import 'welcome_screen.dart';
-import '../components/bottom_navbar.dart'; // 👈 Barra inferior reusable
+import '../components/bottom_navbar.dart'; // Barra inferior reusable
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});

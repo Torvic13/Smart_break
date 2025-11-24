@@ -3,16 +3,31 @@ import 'package:http/http.dart' as http;
 import '../models/estudiante.dart';
 import '../models/usuario.dart';
 import 'usuario_dao.dart';
+import 'auth_service.dart';
 
 class HttpUsuarioDAO implements UsuarioDAO {
   final String baseUrl;
 
   HttpUsuarioDAO({this.baseUrl = 'http://10.0.2.2:4000/api/v1'});
 
+  // Helper para headers con token opcional
+  Map<String, String> _headers({bool auth = false}) {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (auth) {
+      final token = AuthService().token;
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    return headers;
+  }
+
   @override
   Future<Usuario?> obtenerPorId(String id) async {
     final uri = Uri.parse('$baseUrl/usuarios');
-    final resp = await http.get(uri);
+    final resp = await http.get(uri, headers: _headers());
 
     if (resp.statusCode == 200) {
       final List<dynamic> usuarios = jsonDecode(resp.body);
@@ -32,7 +47,7 @@ class HttpUsuarioDAO implements UsuarioDAO {
   @override
   Future<Usuario?> obtenerPorEmail(String email) async {
     final uri = Uri.parse('$baseUrl/usuarios');
-    final resp = await http.get(uri);
+    final resp = await http.get(uri, headers: _headers());
 
     if (resp.statusCode == 200) {
       final List<dynamic> usuarios = jsonDecode(resp.body);
@@ -52,7 +67,7 @@ class HttpUsuarioDAO implements UsuarioDAO {
   @override
   Future<List<Usuario>> obtenerTodos() async {
     final uri = Uri.parse('$baseUrl/usuarios');
-    final resp = await http.get(uri);
+    final resp = await http.get(uri, headers: _headers());
 
     if (resp.statusCode == 200) {
       final List<dynamic> usuarios = jsonDecode(resp.body);
@@ -80,7 +95,7 @@ class HttpUsuarioDAO implements UsuarioDAO {
   // Métodos específicos para amigos
   Future<Estudiante?> buscarPorCodigo(String codigoAlumno) async {
     final uri = Uri.parse('$baseUrl/usuarios/buscar/$codigoAlumno');
-    final resp = await http.get(uri);
+    final resp = await http.get(uri, headers: _headers());
 
     if (resp.statusCode == 200) {
       final data = jsonDecode(resp.body);
@@ -99,7 +114,7 @@ class HttpUsuarioDAO implements UsuarioDAO {
     final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/amigos');
     final resp = await http.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers(auth: true),
       body: jsonEncode({'amigoId': amigoId}),
     );
 
@@ -117,7 +132,7 @@ class HttpUsuarioDAO implements UsuarioDAO {
 
   Future<List<Estudiante>> obtenerAmigos(String idUsuario) async {
     final uri = Uri.parse('$baseUrl/usuarios/$idUsuario/amigos');
-    final resp = await http.get(uri);
+    final resp = await http.get(uri, headers: _headers());
 
     if (resp.statusCode == 200) {
       final data = jsonDecode(resp.body);
