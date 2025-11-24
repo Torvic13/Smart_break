@@ -17,6 +17,7 @@ import 'detalle_espacio_screen.dart';
 import 'crear_espacio_screen.dart';
 import 'profile_screen.dart';
 import 'admin_profile_screen.dart';
+import 'lista_espacios_screen.dart'; // 👈 agrega esta línea junto a los otros imports de screens
 
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key});
@@ -427,7 +428,12 @@ class _MapaScreenState extends State<MapaScreen> {
               Navigator.pushReplacementNamed(context, '/amigos');
               break;
             case 2:
-              Navigator.pushReplacementNamed(context, '/eventos');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ListaEspaciosScreen(),
+                ),
+              );
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/perfil');

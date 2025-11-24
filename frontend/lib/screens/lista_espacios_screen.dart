@@ -130,6 +130,13 @@ class _ListaEspaciosScreenState extends State<ListaEspaciosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context); // vuelve a la pantalla anterior
+          },
+        ),
+        centerTitle: true, // 👈 centra el título
         title: const Text('Espacios Disponibles'),
         backgroundColor: const Color(0xFFF97316),
         foregroundColor: Colors.white,

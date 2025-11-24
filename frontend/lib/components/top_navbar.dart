@@ -34,19 +34,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: true,
       elevation: 0,
       actions: [
-        // 🔸 Botón para la lista de espacios
-        IconButton(
-          icon: const Icon(Icons.list),
-          tooltip: 'Lista de Espacios',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ListaEspaciosScreen(),
-              ),
-            );
-          },
-        ),
+
       ],
     );
   }

@@ -616,7 +616,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.espacio.nombre),
-        backgroundColor: const Color(0xFF1976D2),
+        backgroundColor: const Color(0xFFFF9800),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -1007,7 +1007,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                       child: ElevatedButton(
                         onPressed: _isSubmitting ? null : _submitCalificacion,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1976D2),
+                          backgroundColor: const Color(0xFFFF9800),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
