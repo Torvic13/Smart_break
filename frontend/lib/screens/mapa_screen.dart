@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../components/top_navbar.dart';
 import '../components/bottom_navbar.dart';
 import '../dao/dao_factory.dart';
@@ -32,6 +34,7 @@ class _MapaScreenState extends State<MapaScreen> {
   List<String> _selectedCategoryIds = [];
 
   bool _isLoading = true;
+  bool _hasCheckedOnboarding = false;
 
   // Centro del campus
   static const LatLng _campusCenter = LatLng(-12.084778, -76.971357);
@@ -40,44 +43,197 @@ class _MapaScreenState extends State<MapaScreen> {
   void initState() {
     super.initState();
     _loadData();
+
+    // Revisar onboarding después del primer frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowOnboarding();
+    });
   }
 
   /// Cargar espacios y categorías desde DAO (mock o backend)
   Future<void> _loadData() async {
-  final daoFactory = Provider.of<DAOFactory>(context, listen: false);
-  final espacioDAO = daoFactory.createEspacioDAO();
-  final categoriaDAO = daoFactory.createCategoriaDAO();
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+    final espacioDAO = daoFactory.createEspacioDAO();
+    final categoriaDAO = daoFactory.createCategoriaDAO();
 
-  try {
-    final espacios = await espacioDAO.obtenerTodos();
-    final categorias = await categoriaDAO.obtenerTodas();
+    try {
+      final espacios = await espacioDAO.obtenerTodos();
+      final categorias = await categoriaDAO.obtenerTodas();
 
-    // 👇 DEBUG: imprime lo que llega
-    // (mira la consola de Android Studio / VS Code)
-    // ************************************************
-    print('>>> ESPACIOS RECIBIDOS: ${espacios.length}');
-    for (final e in espacios) {
-      print(' - ${e.nombre} @ ${e.ubicacion.latitud}, ${e.ubicacion.longitud}');
+      // DEBUG
+      print('>>> ESPACIOS RECIBIDOS: ${espacios.length}');
+      for (final e in espacios) {
+        print(' - ${e.nombre} @ ${e.ubicacion.latitud}, ${e.ubicacion.longitud}');
+      }
+
+      setState(() {
+        _espacios = espacios;
+        _filteredEspacios = espacios; // sin filtros por ahora
+        _categorias = categorias;
+        _isLoading = false;
+      });
+    } catch (e, st) {
+      print('ERROR CARGANDO ESPACIOS: $e');
+      print(st);
+      setState(() {
+        _isLoading = false;
+      });
     }
-    // ************************************************
-
-    setState(() {
-      _espacios = espacios;
-      _filteredEspacios = espacios; // sin filtros por ahora
-      _categorias = categorias;
-      _isLoading = false;
-    });
-  } catch (e, st) {
-    print('ERROR CARGANDO ESPACIOS: $e');
-    print(st);
-    setState(() {
-      _isLoading = false;
-    });
   }
-}
 
   Future<void> _refrescarMapa() async {
     await _loadData();
+  }
+
+  /// Onboarding que se muestra solo una vez por estudiante
+  Future<void> _checkAndShowOnboarding() async {
+    if (_hasCheckedOnboarding) return;
+    _hasCheckedOnboarding = true;
+
+    final usuario = AuthService().usuarioActual;
+
+    // Solo mostramos onboarding a estudiantes (no al admin)
+    if (usuario is! Estudiante) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool('hasSeenMapaOnboarding') ?? false;
+
+    if (!hasSeen && mounted) {
+      await prefs.setBool('hasSeenMapaOnboarding', true);
+      _showOnboardingDialog();
+    }
+  }
+
+  void _showOnboardingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        int currentPage = 0;
+        const primaryOrange = Color(0xFFF97316);
+
+        final pages = [
+          (
+            'Encuentra tu espacio ideal',
+            'Explora el mapa del campus y descubre bibliotecas, salas de estudio, cafeterías y más.',
+            Icons.map,
+          ),
+          (
+            'Evita espacios llenos',
+            'Revisa los niveles de ocupación para elegir el mejor lugar para estudiar o descansar.',
+            Icons.people_alt,
+          ),
+          (
+            'Califica y comenta',
+            'Califica los espacios y deja comentarios para ayudar a otros estudiantes.',
+            Icons.rate_review,
+          ),
+        ];
+
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final (title, desc, icon) = pages[currentPage];
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SizedBox(
+                height: 380,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Saltar',
+                            style: TextStyle(color: primaryOrange),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Icon(icon, size: 72, color: primaryOrange),
+                      const SizedBox(height: 16),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        desc,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          pages.length,
+                          (index) => Container(
+                            width: currentPage == index ? 20 : 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(
+                              color: currentPage == index
+                                  ? primaryOrange
+                                  : primaryOrange.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (currentPage == pages.length - 1) {
+                              Navigator.pop(context);
+                            } else {
+                              setStateDialog(() {
+                                currentPage++;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryOrange,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            currentPage == pages.length - 1
+                                ? 'Comenzar'
+                                : 'Siguiente',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Color _getOcupacionColor(NivelOcupacion nivel) {
@@ -104,7 +260,7 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
-  /// 🔥 Por ahora NO filtramos nada: siempre mostramos todos los espacios.
+  /// Por ahora NO filtramos nada: siempre mostramos todos los espacios.
   void _applyFilters(List<String> selectedCategoryIds) {
     setState(() {
       _selectedCategoryIds = selectedCategoryIds;
@@ -120,7 +276,7 @@ class _MapaScreenState extends State<MapaScreen> {
       extendBody: true,
       appBar: TopNavBar(
         categorias: _categorias,
-        onApplyFilters: _applyFilters, // aunque llame, no filtramos nada
+        onApplyFilters: _applyFilters,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -142,7 +298,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       userAgentPackageName: 'com.example.smart_break',
                     ),
 
-                    // 🔶 Marcadores: mostramos SIEMPRE todos los espacios cargados
+                    // Marcadores: mostramos siempre todos los espacios cargados
                     MarkerLayer(
                       markers: _filteredEspacios.map((espacio) {
                         return Marker(
@@ -187,15 +343,25 @@ class _MapaScreenState extends State<MapaScreen> {
                           ),
                           const SizedBox(height: 8),
                           _buildLegendItem(
-                              'Vacío', _getOcupacionColor(NivelOcupacion.vacio)),
+                            'Vacío',
+                            _getOcupacionColor(NivelOcupacion.vacio),
+                          ),
                           _buildLegendItem(
-                              'Bajo', _getOcupacionColor(NivelOcupacion.bajo)),
-                          _buildLegendItem('Medio',
-                              _getOcupacionColor(NivelOcupacion.medio)),
+                            'Bajo',
+                            _getOcupacionColor(NivelOcupacion.bajo),
+                          ),
                           _buildLegendItem(
-                              'Alto', _getOcupacionColor(NivelOcupacion.alto)),
+                            'Medio',
+                            _getOcupacionColor(NivelOcupacion.medio),
+                          ),
                           _buildLegendItem(
-                              'Lleno', _getOcupacionColor(NivelOcupacion.lleno)),
+                            'Alto',
+                            _getOcupacionColor(NivelOcupacion.alto),
+                          ),
+                          _buildLegendItem(
+                            'Lleno',
+                            _getOcupacionColor(NivelOcupacion.lleno),
+                          ),
                         ],
                       ),
                     ),
@@ -225,6 +391,20 @@ class _MapaScreenState extends State<MapaScreen> {
               child: const Icon(Icons.add, color: Colors.white),
             ),
           if (usuario is AdministradorSistema) const SizedBox(height: 10),
+
+          // Botón para volver a ver el onboarding
+          FloatingActionButton(
+            heroTag: 'showOnboarding',
+            backgroundColor: Colors.blueAccent,
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('hasSeenMapaOnboarding');
+              _showOnboardingDialog();
+            },
+            child: const Icon(Icons.help_outline, color: Colors.white),
+          ),
+          const SizedBox(height: 10),
+
           FloatingActionButton(
             heroTag: 'centrar',
             backgroundColor: const Color(0xFFF97316),
