@@ -49,18 +49,14 @@ class BottomNavBar extends StatelessWidget {
                 unselectedFontSize: 12,
                 selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
                 onTap: (index) {
-                  // 👇 Mensaje temporal si aún no hay funcionalidad
-                  if (index == 1 || index == 2) {
+                  // 👇 Mensaje temporal para eventos (aún no implementado)
+                  if (index == 2) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          index == 1
-                              ? '👥 Funcionalidad de Amigos próximamente'
-                              : '📅 Funcionalidad de Eventos próximamente',
-                        ),
-                        duration: const Duration(seconds: 2),
+                      const SnackBar(
+                        content: Text('📅 Funcionalidad de Eventos próximamente'),
+                        duration: Duration(seconds: 2),
                         behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.all(16),
+                        margin: EdgeInsets.all(16),
                       ),
                     );
                     return;

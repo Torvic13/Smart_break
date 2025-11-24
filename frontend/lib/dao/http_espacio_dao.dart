@@ -1,9 +1,9 @@
-// lib/dao/http_espacio_dao.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/espacio.dart';
 import 'espacio_dao.dart';
+import 'auth_service.dart';  // para obtener el JWT
 
 class HttpEspacioDAO implements EspacioDAO {
   final String baseUrl;
@@ -12,20 +12,31 @@ class HttpEspacioDAO implements EspacioDAO {
 
   Uri _uri([String path = '']) => Uri.parse('$baseUrl/espacios$path');
 
-  // 🔹 Normaliza el JSON que viene del backend para adaptarlo
-  // al Espacio.fromJson() del front
+  Map<String, String> _headers({bool auth = false}) {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+
+    if (auth) {
+      final token = AuthService().token;
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+    }
+
+    return headers;
+  }
+
+  // Normaliza el JSON del back al modelo del front
   Map<String, dynamic> _normalizeEspacioJson(Map<String, dynamic> json) {
     final normalized = Map<String, dynamic>.from(json);
 
-    // _id -> idEspacio (por si el back usa _id de Mongo)
     if (!normalized.containsKey('idEspacio') && normalized['_id'] != null) {
       normalized['idEspacio'] = normalized['_id'];
     }
 
-    // nivelOcupacion por defecto
     normalized['nivelOcupacion'] ??= 'medio';
 
-    // promedioCalificacion siempre double
     final prom = normalized['promedioCalificacion'];
     if (prom is int) {
       normalized['promedioCalificacion'] = prom.toDouble();
@@ -33,16 +44,15 @@ class HttpEspacioDAO implements EspacioDAO {
       normalized['promedioCalificacion'] = 0.0;
     }
 
-    // ubicacion con idUbicacion
     if (normalized['ubicacion'] != null && normalized['ubicacion'] is Map) {
       final ubic = Map<String, dynamic>.from(
-          normalized['ubicacion'] as Map<String, dynamic>);
+        normalized['ubicacion'] as Map<String, dynamic>,
+      );
       ubic['idUbicacion'] ??=
           normalized['idEspacio'] ?? normalized['_id'] ?? 'ubic-auto';
       normalized['ubicacion'] = ubic;
     }
 
-    // listas nunca nulas
     normalized['caracteristicas'] ??= [];
     normalized['categoriaIds'] ??= [];
 
@@ -57,10 +67,6 @@ class HttpEspacioDAO implements EspacioDAO {
     }
     return [];
   }
-
-  Map<String, String> _headers() => {
-        'Content-Type': 'application/json',
-      };
 
   @override
   Future<List<Espacio>> obtenerTodos() async {
@@ -99,8 +105,6 @@ class HttpEspacioDAO implements EspacioDAO {
         _normalizeEspacioJson(json as Map<String, dynamic>));
   }
 
-  // Por ahora estos filtros los hacemos en memoria usando obtenerTodos()
-
   @override
   Future<List<Espacio>> obtenerPorTipo(String tipo) async {
     final todos = await obtenerTodos();
@@ -113,7 +117,8 @@ class HttpEspacioDAO implements EspacioDAO {
   Future<List<Espacio>> obtenerPorNivelOcupacion(String nivel) async {
     final todos = await obtenerTodos();
     return todos
-        .where((e) => e.nivelOcupacion.name.toLowerCase() == nivel.toLowerCase())
+        .where((e) =>
+            e.nivelOcupacion.name.toLowerCase() == nivel.toLowerCase())
         .toList();
   }
 
@@ -130,23 +135,94 @@ class HttpEspacioDAO implements EspacioDAO {
     }).toList();
   }
 
-  // Estos los dejamos pendientes hasta que quieras crear/editar desde la app
-
+  // 🔸 Crear espacio (POST /api/v1/espacios)
   @override
-  Future<void> crear(Espacio espacio) async {
-    throw UnimplementedError(
-        'crear() aún no está implementado en HttpEspacioDAO');
+Future<void> crear(Espacio espacio) async {
+  // 1) Intentar usar el token en memoria
+  var token = AuthService().token;
+
+  // 2) Si es null, intentar cargarlo desde SharedPreferences
+  if (token == null) {
+    await AuthService().cargarSesion();
+    token = AuthService().token;
   }
+
+  // 3) Si sigue siendo null, sí lanzamos la excepción
+  if (token == null || token.isEmpty) {
+    throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+  }
+
+  // 4) Hacemos el POST al backend
+  final resp = await http.post(
+    _uri(),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode(espacio.toJson()),
+  );
+
+  if (resp.statusCode != 201) {
+    throw Exception(
+      'Error al crear espacio (${resp.statusCode}): ${resp.body}',
+    );
+  }
+}
 
   @override
   Future<void> actualizar(Espacio espacio) async {
-    throw UnimplementedError(
-        'actualizar() aún no está implementado en HttpEspacioDAO');
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.put(
+      _uri('/${espacio.idEspacio}'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(espacio.toJson()),
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al actualizar espacio (${resp.statusCode}): ${resp.body}',
+      );
+    }
   }
 
   @override
   Future<void> eliminar(String id) async {
-    throw UnimplementedError(
-        'eliminar() aún no está implementado en HttpEspacioDAO');
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.delete(
+      _uri('/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al eliminar espacio (${resp.statusCode}): ${resp.body}',
+      );
+    }
   }
 }

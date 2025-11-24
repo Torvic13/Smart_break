@@ -5,8 +5,9 @@ const cors    = require('cors');
 // Middlewares de autenticación
 const { requireAuth, requireRole } = require('./middlewares/auth_middleware');
 
-// 🆕 Importar rutas de espacios
+// Importar rutas
 const espacioRoutes = require('./routes/espacio_routes');
+const categoriaRoutes = require('./routes/categoria_routes');
 
 const app = express();
 
@@ -16,7 +17,7 @@ app.use(morgan('dev'));
 app.use(cors());
 
 // Ruta base de prueba
-app.get('/', (_req, res) => res.json({ message: 'API SmartBreak funcionando 🧠' }));
+app.get('/', (_req, res) => res.json({ message: 'API SmartBreak funcionando' }));
 
 // Rutas de usuario
 app.use('/api/v1/usuarios', require('./routes/user_routes'));
@@ -24,8 +25,9 @@ app.use('/api/v1/usuarios', require('./routes/user_routes'));
 // Rutas de autenticación
 app.use('/api/v1/auth', require('./routes/auth_routes'));
 
-// 🆕 Registrar rutas de espacios
+// Registrar rutas de espacios y categorías
 app.use('/api/v1/espacios', espacioRoutes);
+app.use('/api/v1/categorias', categoriaRoutes);
 
 // Ejemplo: ruta protegida
 app.get('/api/v1/me', requireAuth, (req, res) => {
@@ -34,7 +36,7 @@ app.get('/api/v1/me', requireAuth, (req, res) => {
 
 // Ejemplo: ruta solo admin
 app.post('/api/v1/admin/only', requireAuth, requireRole('admin'), (req, res) => {
-  res.json({ ok: true, message: 'Acceso de administrador concedido 👑' });
+  res.json({ ok: true, message: 'Acceso de administrador concedido' });
 });
 
 module.exports = app;

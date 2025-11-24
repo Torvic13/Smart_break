@@ -62,4 +62,122 @@ async function listarUsuarios(_req, res) {
   }
 }
 
-module.exports = { crearUsuario, listarUsuarios };
+// GET /api/v1/usuarios/buscar/:codigoAlumno
+async function buscarPorCodigo(req, res) {
+  try {
+    const { codigoAlumno } = req.params;
+    const usuario = await User.findOne({ codigoAlumno, rol: 'estudiante' }).select('-passwordHash');
+    
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    return res.json({ usuario: usuario.toJSON() });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error al buscar usuario', error: err.message });
+  }
+}
+
+// POST /api/v1/usuarios/:idUsuario/amigos
+async function agregarAmigo(req, res) {
+  try {
+    const { idUsuario } = req.params;
+    const { amigoId } = req.body;
+
+    if (!amigoId) {
+      return res.status(400).json({ message: 'amigoId es obligatorio' });
+    }
+
+    // Verificar que ambos usuarios existen
+    const usuario = await User.findOne({ idUsuario });
+    const amigo = await User.findOne({ idUsuario: amigoId });
+
+    if (!usuario || !amigo) {
+      return res.status(404).json({ message: 'Usuario o amigo no encontrado' });
+    }
+
+    // Verificar si ya son amigos
+    if (usuario.amigosIds.includes(amigoId)) {
+      return res.status(400).json({ message: 'Ya son amigos' });
+    }
+
+    // Agregar amigo bilateralmente
+    usuario.amigosIds.push(amigoId);
+    amigo.amigosIds.push(idUsuario);
+
+    await usuario.save();
+    await amigo.save();
+
+    return res.json({ message: 'Amigo agregado exitosamente' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error al agregar amigo', error: err.message });
+  }
+}
+
+// GET /api/v1/usuarios/:idUsuario/amigos
+async function obtenerAmigos(req, res) {
+  try {
+    const { idUsuario } = req.params;
+    
+    const usuario = await User.findOne({ idUsuario });
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Obtener información de los amigos
+    const amigos = await User.find({ 
+      idUsuario: { $in: usuario.amigosIds } 
+    }).select('-passwordHash');
+
+    return res.json({ amigos });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error al obtener amigos', error: err.message });
+  }
+}
+
+// PUT /api/v1/usuarios/:idUsuario/ubicacion
+async function actualizarUbicacionCompartida(req, res) {
+  try {
+    const { idUsuario } = req.params;
+    const { ubicacionCompartida } = req.body;
+
+    if (typeof ubicacionCompartida !== 'boolean') {
+      return res.status(400).json({ 
+        message: 'ubicacionCompartida debe ser booleano' 
+      });
+    }
+
+    const usuario = await User.findOneAndUpdate(
+      { idUsuario },
+      { ubicacionCompartida },
+      { new: true }
+    ).select('-passwordHash');
+
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    return res.json({ 
+      message: 'Configuración actualizada', 
+      usuario: usuario.toJSON() 
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ 
+      message: 'Error al actualizar ubicación', 
+      error: err.message 
+    });
+  }
+}
+
+module.exports = { 
+  crearUsuario, 
+  listarUsuarios, 
+  buscarPorCodigo, 
+  agregarAmigo, 
+  obtenerAmigos,
+  actualizarUbicacionCompartida
+};

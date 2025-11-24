@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+
 import '../models/espacio.dart';
 import '../models/ubicacion.dart';
 import '../models/administrador_sistema.dart';
 import '../dao/dao_factory.dart';
-import 'package:provider/provider.dart';
 
 class CrearEspacioScreen extends StatefulWidget {
   final AdministradorSistema usuarioActual;
@@ -38,91 +39,94 @@ class _CrearEspacioScreenState extends State<CrearEspacioScreen> {
   }
 
   Future<void> _loadEspacios() async {
-    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
-    final espacioDAO = daoFactory.createEspacioDAO();
-    final espacios = await espacioDAO.obtenerTodos();
+    try {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      final espacioDAO = daoFactory.createEspacioDAO();
+      final espacios = await espacioDAO.obtenerTodos();
 
-    setState(() {
-      _espacios = espacios;
-    });
+      setState(() {
+        _espacios = espacios;
+      });
+    } catch (_) {
+      // podrías mostrar un snackbar si quieres
+    }
   }
 
-Future<void> _guardarEspacio() async {
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> _guardarEspacio() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  if (_selectedPoint == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Selecciona una ubicación en el mapa.')),
-    );
-    return;
+    if (_selectedPoint == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona una ubicación en el mapa.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final ahora = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // 1) Crear el objeto Espacio que enviaremos al backend
+      final nuevoEspacio = Espacio(
+        idEspacio: ahora, // el back genera el suyo, este se ignora
+        nombre: _nombreController.text.trim(),
+        tipo: _tipoController.text.trim(),
+        nivelOcupacion: NivelOcupacion.vacio,
+        promedioCalificacion: 0.0,
+        ubicacion: Ubicacion(
+          idUbicacion: ahora,
+          latitud: _selectedPoint!.latitude,
+          longitud: _selectedPoint!.longitude,
+          piso: int.tryParse(_pisoController.text.trim()) ?? 0,
+        ),
+        caracteristicas: const [],
+        categoriaIds: const [],
+      );
+
+      // 2) Llamar al DAO HTTP para hacer el POST al backend
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      final espacioDAO = daoFactory.createEspacioDAO();
+      await espacioDAO.crear(nuevoEspacio);
+
+      // 3) Recargar lista desde el backend para ver el pin nuevo
+      await _loadEspacios();
+
+      // 4) Limpiar formulario
+      _nombreController.clear();
+      _tipoController.clear();
+      _pisoController.clear();
+      _latitudController.clear();
+      _longitudController.clear();
+      setState(() {
+        _selectedPoint = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Espacio creado correctamente'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al crear espacio: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
-
-  setState(() => _isSaving = true);
-
-  final admin = widget.usuarioActual;
-
-  // Crear nuevo espacio usando el método del administrador
-  admin.crearEspacio({
-    'idEspacio': DateTime.now().millisecondsSinceEpoch.toString(),
-    'nombre': _nombreController.text.trim(),
-    'tipo': _tipoController.text.trim(),
-    'nivelOcupacion': NivelOcupacion.vacio,
-    'promedioCalificacion': 0.0,
-    'ubicacion': Ubicacion(
-      idUbicacion: DateTime.now().millisecondsSinceEpoch.toString(),
-      latitud: _selectedPoint!.latitude,
-      longitud: _selectedPoint!.longitude,
-      piso: int.tryParse(_pisoController.text.trim()) ?? 0,
-    ),
-  });
-
-  // Crear el nuevo espacio localmente para mostrarlo en el mapa
-  final nuevoEspacio = Espacio(
-    idEspacio: DateTime.now().millisecondsSinceEpoch.toString(),
-    nombre: _nombreController.text.trim(),
-    tipo: _tipoController.text.trim(),
-    nivelOcupacion: NivelOcupacion.vacio,
-    promedioCalificacion: 0.0,
-    ubicacion: Ubicacion(
-      idUbicacion: DateTime.now().millisecondsSinceEpoch.toString(),
-      latitud: _selectedPoint!.latitude,
-      longitud: _selectedPoint!.longitude,
-      piso: int.tryParse(_pisoController.text.trim()) ?? 0,
-    ),
-    caracteristicas: const [],
-  );
-
-  // 👇 Agrega el nuevo espacio a la lista mostrada en el mapa
-  setState(() {
-    _espacios.add(nuevoEspacio);
-    _isSaving = false;
-  });
-
-  // Limpia los campos (opcional)
-  _nombreController.clear();
-  _tipoController.clear();
-  _pisoController.clear();
-  _latitudController.clear();
-  _longitudController.clear();
-  _selectedPoint = null;
-
-  // Muestra confirmación visual sin salir de la pantalla
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('✅ Espacio guardado y mostrado en el mapa'),
-      behavior: SnackBarBehavior.floating,
-      duration: Duration(seconds: 2),
-    ),
-  );
-}
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Nuevo Espacio'),
-        backgroundColor: const Color(0xFFF97316), // Naranja característico
+        backgroundColor: const Color(0xFFF97316),
         foregroundColor: Colors.white,
         centerTitle: true,
       ),
@@ -197,13 +201,14 @@ Future<void> _guardarEspacio() async {
                   backgroundColor: const Color(0xFFF97316),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 onPressed: _isSaving ? null : _guardarEspacio,
               ),
               const SizedBox(height: 20),
 
-              // 🗺️ Mapa con los puntos existentes + punto nuevo
               SizedBox(
                 height: 400,
                 child: ClipRRect(
@@ -229,7 +234,7 @@ Future<void> _guardarEspacio() async {
                         subdomains: const ['a', 'b', 'c'],
                       ),
 
-                      // Espacios existentes (naranja)
+                      // Puntos existentes (naranja)
                       MarkerLayer(
                         markers: _espacios.map((espacio) {
                           return Marker(
@@ -248,7 +253,7 @@ Future<void> _guardarEspacio() async {
                         }).toList(),
                       ),
 
-                      // Nuevo punto seleccionado (rojo)
+                      // Punto nuevo seleccionado (rojo)
                       if (_selectedPoint != null)
                         MarkerLayer(
                           markers: [

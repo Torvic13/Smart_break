@@ -10,7 +10,7 @@ class AdministradorSistema extends Usuario {
     required super.fechaCreacion,
     required super.estado,
   }) : super(
-         rol: RolUsuario.admin, // 👈 se asigna directamente el rol admin
+         rol: RolUsuario.admin, // se asigna directamente el rol admin
        );
 
   void crearEspacio(Map<String, dynamic> datosEspacio) {
@@ -36,7 +36,7 @@ class AdministradorSistema extends Usuario {
   @override
   Map<String, dynamic> toJson() {
     final json = super.toJson();
-    json['rol'] = RolUsuario.admin.name; // 👈 guarda como 'admin'
+    json['rol'] = RolUsuario.admin.name; // guarda como 'admin'
     return json;
   }
 

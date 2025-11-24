@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/categoria_espacio.dart';
 import '../dao/categoria_dao.dart';
-import '../dao/mock_categoria_dao.dart';
+import '../dao/dao_factory.dart';
 
 /// Pantalla para administrar todas las categorías del sistema
 class AdminCategoriasScreen extends StatefulWidget {
@@ -12,13 +13,15 @@ class AdminCategoriasScreen extends StatefulWidget {
 }
 
 class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
-  final CategoriaDAO _categoriaDAO = MockCategoriaDAO();
+  late CategoriaDAO _categoriaDAO;
   Map<TipoCategoria, List<CategoriaEspacio>> _categoriasPorTipo = {};
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+    _categoriaDAO = daoFactory.createCategoriaDAO();
     _cargarCategorias();
   }
 

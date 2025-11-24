@@ -6,6 +6,7 @@ class Estudiante extends Usuario {
   final String nombreCompleto;
   final bool ubicacionCompartida;
   final String carrera;
+  final List<String> amigosIds;
 
   Estudiante({
     required super.idUsuario,
@@ -17,6 +18,7 @@ class Estudiante extends Usuario {
     required this.nombreCompleto,
     required this.ubicacionCompartida,
     required this.carrera,
+    this.amigosIds = const [],
   }) : super(
          rol: RolUsuario.estudiante, // asignamos el rol aquí
        );
@@ -46,6 +48,7 @@ class Estudiante extends Usuario {
       'nombreCompleto': nombreCompleto,
       'ubicacionCompartida': ubicacionCompartida,
       'carrera': carrera,
+      'amigosIds': amigosIds,
     });
     return json;
   }
@@ -64,6 +67,9 @@ class Estudiante extends Usuario {
       nombreCompleto: json['nombreCompleto'],
       ubicacionCompartida: json['ubicacionCompartida'] ?? false,
       carrera: json['carrera'] ?? 'No especificada',
+      amigosIds: json['amigosIds'] != null 
+          ? List<String>.from(json['amigosIds']) 
+          : [],
     );
   }
 }

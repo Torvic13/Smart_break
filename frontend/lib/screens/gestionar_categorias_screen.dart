@@ -6,6 +6,7 @@ import '../models/espacio.dart';
 import '../dao/dao_factory.dart';
 import '../dao/categoria_dao.dart';
 import '../dao/espacio_dao.dart';
+import '../dao/auth_service.dart';
 import 'detalle_espacio_categorias_screen.dart';
 import 'admin_categorias_screen.dart';
 
@@ -93,6 +94,18 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
       setState(() {
         _categoriasPorTipo = tempMap;
         _espacios = espacios;
+        
+        // Validar que el espacio seleccionado aún existe en la lista
+        if (_espacioSeleccionado != null) {
+          final existeEnLista = espacios.any(
+            (e) => e.idEspacio == _espacioSeleccionado!.idEspacio
+          );
+          if (!existeEnLista) {
+            _espacioSeleccionado = null;
+            _categoriasSeleccionadas.clear();
+          }
+        }
+        
         _isLoading = false;
       });
     } catch (e) {
@@ -286,7 +299,24 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
   Future<void> _guardarCategoriasDeEspacio() async {
     if (_espacioSeleccionado == null) return;
 
+    // Verificar autenticación
+    if (!AuthService().isAuthenticated) {
+      _mostrarSnackBar(
+        'Debes iniciar sesión como administrador para asignar categorías',
+        esError: true,
+      );
+      
+      // Opcional: redirigir al login
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
+      return;
+    }
+
     try {
+      print('Intentando guardar categorías para espacio: ${_espacioSeleccionado!.nombre}');
+      print('Categorías seleccionadas: $_categoriasSeleccionadas');
+      
       // Crear espacio actualizado con las nuevas categorías
       final espacioActualizado = Espacio(
         idEspacio: _espacioSeleccionado!.idEspacio,
@@ -299,7 +329,9 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
         categoriaIds: _categoriasSeleccionadas.toList(),
       );
 
+      print('Llamando a _espacioDAO.actualizar()...');
       await _espacioDAO.actualizar(espacioActualizado);
+      print('Espacio actualizado exitosamente');
 
       setState(() {
         _espacioSeleccionado = espacioActualizado;
@@ -542,7 +574,9 @@ class _GestionarCategoriasScreenState extends State<GestionarCategoriasScreen> {
                               ],
                             ),
                             child: DropdownButtonFormField<Espacio?>(
-                              value: _espacioSeleccionado,
+                              value: _espacios.contains(_espacioSeleccionado) 
+                                  ? _espacioSeleccionado 
+                                  : null,
                               decoration: InputDecoration(
                                 hintText: 'Selecciona un espacio',
                                 hintStyle: TextStyle(
