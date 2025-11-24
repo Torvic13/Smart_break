@@ -5,12 +5,13 @@ const cors    = require('cors');
 // Middlewares de autenticación
 const { requireAuth, requireRole } = require('./middlewares/auth_middleware');
 
-
 // Rutas
 const espacioRoutes = require('./routes/espacio_routes');
 const calificacionRoutes = require('./routes/calificacion_routes');
 const categoriaRoutes = require('./routes/categoria_routes');
 
+// 🆕 Importar rutas de incidencias
+const incidenciaRoutes = require('./routes/incidencia_routes');
 
 const app = express();
 
@@ -31,9 +32,12 @@ app.use('/api/v1/usuarios', require('./routes/user_routes'));
 // Rutas de autenticación
 app.use('/api/v1/auth', require('./routes/auth_routes'));
 
-
+// Rutas existentes
 app.use('/api/v1/espacios', espacioRoutes);
 app.use('/api/v1/categorias', categoriaRoutes);
+
+// 🆕 Registrar rutas de incidencias (Stephany)
+app.use('/api/v1/incidencias', incidenciaRoutes);
 
 // Ruta protegida
 app.get('/api/v1/me', requireAuth, (req, res) => {
