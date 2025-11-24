@@ -99,6 +99,9 @@ class HttpAuthDAO implements AuthDAO {
           ubicacionCompartida:
               usuarioJson['ubicacionCompartida'] as bool? ?? false,
           carrera: usuarioJson['carrera'] ?? 'No especificada',
+          amigosIds: usuarioJson['amigosIds'] != null
+              ? List<String>.from(usuarioJson['amigosIds'])
+              : [],
         );
       }
 
@@ -158,6 +161,9 @@ class HttpAuthDAO implements AuthDAO {
         ubicacionCompartida:
             usuarioJson['ubicacionCompartida'] as bool? ?? false,
         carrera: usuarioJson['carrera'] ?? 'No especificada',
+        amigosIds: usuarioJson['amigosIds'] != null
+            ? List<String>.from(usuarioJson['amigosIds'])
+            : [],
       );
     }
 

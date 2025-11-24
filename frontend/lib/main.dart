@@ -13,6 +13,7 @@ import 'screens/welcome_screen.dart';
 import 'screens/mapa_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_profile_screen.dart';
+import 'screens/amigos_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +74,7 @@ class SmartBreakApp extends StatelessWidget {
           '/mapa': (context) => const MapaScreen(),
           '/perfil': (context) => const UserProfileScreen(),
           '/admin': (context) => const AdminProfileScreen(),
+          '/amigos': (context) => const AmigosScreen(),
         },
       ),
     );

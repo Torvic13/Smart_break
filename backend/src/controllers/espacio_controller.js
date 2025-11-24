@@ -74,4 +74,54 @@ async function obtenerEspacio(req, res) {
   }
 }
 
-module.exports = { listarEspacios, crearEspacio, obtenerEspacio };
+// PUT /api/v1/espacios/:idEspacio
+async function actualizarEspacio(req, res) {
+  try {
+    const { idEspacio } = req.params;
+    const datosActualizados = req.body;
+
+    const espacio = await Espacio.findOneAndUpdate(
+      { idEspacio },
+      datosActualizados,
+      { new: true, runValidators: true }
+    );
+
+    if (!espacio) {
+      return res.status(404).json({ message: 'Espacio no encontrado' });
+    }
+
+    return res.json({ message: 'Espacio actualizado', espacio });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al actualizar espacio', error: err.message });
+  }
+}
+
+// DELETE /api/v1/espacios/:idEspacio
+async function eliminarEspacio(req, res) {
+  try {
+    const { idEspacio } = req.params;
+    const espacio = await Espacio.findOneAndDelete({ idEspacio });
+
+    if (!espacio) {
+      return res.status(404).json({ message: 'Espacio no encontrado' });
+    }
+
+    return res.json({ message: 'Espacio eliminado', espacio });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: 'Error al eliminar espacio', error: err.message });
+  }
+}
+
+module.exports = { 
+  listarEspacios, 
+  crearEspacio, 
+  obtenerEspacio, 
+  actualizarEspacio, 
+  eliminarEspacio 
+};

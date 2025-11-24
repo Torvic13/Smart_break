@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../dao/dao_factory.dart';
 import '../dao/auth_service.dart';
 import '../models/estudiante.dart';
-import '../models/usuario.dart';
 import 'gestionar_categorias_screen.dart';
 import 'welcome_screen.dart';
-import '../components/bottom_navbar.dart'; // 👈 Barra inferior reusable
+import '../components/bottom_navbar.dart'; // Barra inferior reusable
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -18,9 +15,6 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   Estudiante? _userProfile;
   bool _isLoading = true;
-  bool _compartirUbicacion = true;
-  bool _perfilPublico = false;
-  bool _isSaveButtonVisible = false;
 
   final int _espaciosVisitados = 24;
   final int _favoritos = 8;
@@ -57,7 +51,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   if (usuarioActual is Estudiante) {
     setState(() {
       _userProfile = usuarioActual;
-      _compartirUbicacion = usuarioActual.ubicacionCompartida;
       _isLoading = false;
     });
     return;
@@ -129,43 +122,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
-  Future<void> _saveChanges() async {
-    setState(() {
-      _isLoading = true;
-    });
 
-    final daoFactory = Provider.of<DAOFactory>(context, listen: false);
-    final usuarioDAO = daoFactory.createUsuarioDAO();
-
-    if (_userProfile != null) {
-      final updatedUser = Estudiante(
-        idUsuario: _userProfile!.idUsuario,
-        email: _userProfile!.email,
-        passwordHash: _userProfile!.passwordHash,
-        fechaCreacion: _userProfile!.fechaCreacion,
-        estado: _userProfile!.estado,
-        codigoAlumno: _userProfile!.codigoAlumno,
-        nombreCompleto: _userProfile!.nombreCompleto,
-        ubicacionCompartida: _compartirUbicacion,
-        carrera: _userProfile!.carrera,
-      );
-
-      await usuarioDAO.actualizar(updatedUser);
-      AuthService().actualizarUsuario(updatedUser);
-    }
-
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _isSaveButtonVisible = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cambios de configuración guardados.')),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,32 +168,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             _buildActivityMetrics(),
             const SizedBox(height: 32),
             _buildFavoriteSpaces(),
-            const SizedBox(height: 32),
-            _buildPrivacySettings(),
 
             if (AuthService().isAdmin) ...[
               const SizedBox(height: 32),
               _buildAdminSection(),
             ],
-
-            if (_isSaveButtonVisible)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: ElevatedButton(
-                  onPressed: _saveChanges,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF97316),
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Guardar Cambios',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ),
 
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -502,45 +438,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildPrivacySettings() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Configuración de Privacidad',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D3748),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildToggleCard(
-          'Compartir ubicación',
-          Icons.location_on_outlined,
-          _compartirUbicacion,
-          (bool newValue) {
-            setState(() {
-              _compartirUbicacion = newValue;
-              _isSaveButtonVisible = true;
-            });
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildToggleCard(
-          'Perfil público',
-          Icons.circle,
-          _perfilPublico,
-          (bool newValue) {
-            setState(() {
-              _perfilPublico = newValue;
-              _isSaveButtonVisible = true;
-            });
-          },
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildAdminSection() {
     return Column(
@@ -609,51 +507,4 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildToggleCard(
-    String title,
-    IconData leadingIcon,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFC),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(leadingIcon, size: 20, color: const Color(0xFF4A5568)),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF4A5568),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFFF97316),
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: const Color(0xFFCBD5E0),
-          ),
-        ],
-      ),
-    );
-  }
 }

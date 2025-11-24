@@ -71,4 +71,27 @@ class MockUsuarioDAO implements UsuarioDAO {
     await Future.delayed(const Duration(milliseconds: 100));
     _usuarios.removeWhere((u) => u.idUsuario == id);
   }
+
+  @override
+  Future<void> actualizarUbicacionCompartida(String idUsuario, bool compartir) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    final index = _usuarios.indexWhere((u) => u.idUsuario == idUsuario);
+    if (index != -1) {
+      final usuario = _usuarios[index];
+      if (usuario is Estudiante) {
+        _usuarios[index] = Estudiante(
+          idUsuario: usuario.idUsuario,
+          email: usuario.email,
+          passwordHash: usuario.passwordHash,
+          fechaCreacion: usuario.fechaCreacion,
+          estado: usuario.estado,
+          codigoAlumno: usuario.codigoAlumno,
+          nombreCompleto: usuario.nombreCompleto,
+          ubicacionCompartida: compartir,
+          carrera: usuario.carrera,
+          amigosIds: usuario.amigosIds,
+        );
+      }
+    }
+  }
 }

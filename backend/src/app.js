@@ -5,9 +5,12 @@ const cors    = require('cors');
 // Middlewares de autenticación
 const { requireAuth, requireRole } = require('./middlewares/auth_middleware');
 
+
 // Rutas
 const espacioRoutes = require('./routes/espacio_routes');
 const calificacionRoutes = require('./routes/calificacion_routes');
+const categoriaRoutes = require('./routes/categoria_routes');
+
 
 const app = express();
 
@@ -20,7 +23,7 @@ app.use(cors());
 app.use('/api/v1', calificacionRoutes);
 
 // Ruta base de prueba
-app.get('/', (_req, res) => res.json({ message: 'API SmartBreak funcionando 🧠' }));
+app.get('/', (_req, res) => res.json({ message: 'API SmartBreak funcionando' }));
 
 // Rutas de usuario
 app.use('/api/v1/usuarios', require('./routes/user_routes'));
@@ -28,8 +31,9 @@ app.use('/api/v1/usuarios', require('./routes/user_routes'));
 // Rutas de autenticación
 app.use('/api/v1/auth', require('./routes/auth_routes'));
 
-// Rutas de espacios
+
 app.use('/api/v1/espacios', espacioRoutes);
+app.use('/api/v1/categorias', categoriaRoutes);
 
 // Ruta protegida
 app.get('/api/v1/me', requireAuth, (req, res) => {
@@ -38,7 +42,7 @@ app.get('/api/v1/me', requireAuth, (req, res) => {
 
 // Ruta admin
 app.post('/api/v1/admin/only', requireAuth, requireRole('admin'), (req, res) => {
-  res.json({ ok: true, message: 'Acceso de administrador concedido 👑' });
+  res.json({ ok: true, message: 'Acceso de administrador concedido' });
 });
 
 module.exports = app;

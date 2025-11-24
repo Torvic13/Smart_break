@@ -7,4 +7,5 @@ abstract class UsuarioDAO {
   Future<void> crear(Usuario usuario);
   Future<void> actualizar(Usuario usuario);
   Future<void> eliminar(String id);
+  Future<void> actualizarUbicacionCompartida(String idUsuario, bool compartir);
 }
