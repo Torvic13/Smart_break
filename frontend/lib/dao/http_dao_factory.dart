@@ -1,50 +1,60 @@
-import 'dao_factory.dart';
+import 'package:smart_break/dao/dao_factory.dart';
+// Importar todas las interfaces DAO
+import 'package:smart_break/dao/usuario_dao.dart';
+import 'package:smart_break/dao/auth_dao.dart';
+import 'package:smart_break/dao/espacio_dao.dart';
+import 'package:smart_break/dao/calificacion_dao.dart';
+import 'package:smart_break/dao/reporte_ocupacion_dao.dart';
+import 'package:smart_break/dao/categoria_dao.dart';
+// Importar todas las implementaciones concretas HTTP (DEBES CREAR ESTOS ARCHIVOS)
+import 'package:smart_break/dao/http_usuario_dao.dart';
+import 'package:smart_break/dao/http_auth_dao.dart';
+import 'package:smart_break/dao/http_espacio_dao.dart';
+import 'package:smart_break/dao/http_calificacion_dao.dart';
+import 'package:smart_break/dao/http_reporte_ocupacion_dao.dart';
+import 'package:smart_break/dao/http_categoria_dao.dart';
 
-// DAOs de autenticación / usuario
-import 'auth_dao.dart';
-import 'http_auth_dao.dart';
-import 'usuario_dao.dart';
 
-// DAOs de dominio
-import 'espacio_dao.dart';
-import 'calificacion_dao.dart';
-import 'reporte_ocupacion_dao.dart';
-import 'categoria_dao.dart';
-
-// NUEVO: Espacio HTTP DAO
-import 'http_espacio_dao.dart';
-
-// Mocks
-import 'mock_usuario_dao.dart';
-import 'mock_calificacion_dao.dart';
-import 'mock_reporte_ocupacion_dao.dart';
-import 'mock_categoria_dao.dart';
-
+// Fábrica concreta que crea DAOs que se comunican con un backend HTTP
 class HttpDAOFactory implements DAOFactory {
-  // 👉 UsuarioDAO lo mantenemos mock (aún no tienes CRUD real en backend)
-  final MockUsuarioDAO _mockUsuarioDao = MockUsuarioDAO();
+  final String baseUrl;
+
+  HttpDAOFactory({required this.baseUrl});
+
+  // ----------------------------------------------------------------
+  // DEBES CREAR LAS OTRAS CLASES HTTP DAOs (Ej: HttpUsuarioDAO, etc.)
+  // Si no existen, el compilador lanzará errores de archivos no encontrados.
+  // Por ahora, asumimos que has creado archivos placeholder con sus clases.
+  // ----------------------------------------------------------------
 
   @override
-  AuthDAO createAuthDAO() => HttpAuthDAO(
-        // Emulador Android → localhost = 10.0.2.2
-        baseUrl: 'http://10.0.2.2:4000/api/v1',
-      );
+  UsuarioDAO createUsuarioDAO() {
+    return HttpUsuarioDAO(baseUrl: baseUrl);
+  }
 
   @override
-  UsuarioDAO createUsuarioDAO() => _mockUsuarioDao;
-
-  // 👉 AHORA ESPACIOS SE CARGAN DESDE EL BACKEND
-  @override
-  EspacioDAO createEspacioDAO() =>
-      HttpEspacioDAO(baseUrl: 'http://10.0.2.2:4000/api/v1');
+  AuthDAO createAuthDAO() {
+    return HttpAuthDAO(baseUrl: baseUrl);
+  }
 
   @override
-  CalificacionDAO createCalificacionDAO() => MockCalificacionDAO();
+  EspacioDAO createEspacioDAO() {
+    return HttpEspacioDAO(baseUrl: baseUrl);
+  }
 
   @override
-  ReporteOcupacionDAO createReporteOcupacionDAO() =>
-      MockReporteOcupacionDAO();
+  CalificacionDAO createCalificacionDAO() {
+    return HttpCalificacionDAO(baseUrl: baseUrl);
+  }
 
   @override
-  CategoriaDAO createCategoriaDAO() => MockCategoriaDAO();
+  ReporteOcupacionDAO createReporteOcupacionDAO() {
+    // Usamos la implementación corregida que tiene todos los métodos
+    return HttpReporteOcupacionDAO(baseUrl: baseUrl);
+  }
+
+  @override
+  CategoriaDAO createCategoriaDAO() {
+    return HttpCategoriaDAO(baseUrl: baseUrl);
+  }
 }

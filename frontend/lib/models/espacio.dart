@@ -7,7 +7,7 @@ class Espacio {
   final String idEspacio;
   final String nombre;
   final String tipo;
-  final NivelOcupacion nivelOcupacion;
+  NivelOcupacion nivelOcupacion; // sin "final"
   final double promedioCalificacion;
   final Ubicacion ubicacion;
   final List<CaracteristicaEspacio> caracteristicas;

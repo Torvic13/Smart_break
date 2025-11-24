@@ -1,0 +1,61 @@
+### Crear usuario de prueba
+GET http://127.0.0.1:4000/api/v1/auth/crear-prueba
+
+### Login
+### 1. USUARIO ESTUDIANTE (funciona ya)
+POST http://127.0.0.1:4000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "20251234@aloe.ulima.edu.pe",
+  "password": "123456"
+}
+
+### 2. USUARIO ADMIN (nuevo – con contraseña admin123)
+POST http://127.0.0.1:4000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@smartbreak.com",
+  "password": "admin123"
+}
+
+### Listar usuarios
+GET http://127.0.0.1:4000/api/v1/usuarios
+
+# ==================================================================
+# PRUEBAS DE HU22 – CONTROL DE ABUSO EN REPORTES 
+# ==================================================================
+
+### 1. Reportar ocupación por primera vez → DEBE FUNCIONAR (201)
+POST http://127.0.0.1:4000/api/v1/reportes
+Authorization: Bearer COPIA_TU_TOKEN_DE_ESTUDIANTE_AQUÍ
+Content-Type: application/json
+
+{
+  "espacioId": "biblioteca-central",
+  "nivelOcupacion": "alto"
+}
+
+### 2. Reportar el MISMO espacio en menos de 15 min → DEBE BLOQUEAR (429)
+POST http://127.0.0.1:4000/api/v1/reportes
+Authorization: Bearer COPIA_TU_TOKEN_DE_ESTUDIANTE_AQUÍ
+Content-Type: application/json
+
+{
+  "espacioId": "biblioteca-central",
+  "nivelOcupacion": "vacio"
+}
+
+### 3. Reportar OTRO espacio → DEBE PERMITIR (aunque sea en el mismo minuto)
+POST http://127.0.0.1:4000/api/v1/reportes
+Authorization: Bearer COPIA_TU_TOKEN_DE_ESTUDIANTE_AQUÍ
+Content-Type: application/json
+
+{
+  "espacioId": "cafeteria-j",
+  "nivelOcupacion": "medio"
+}
+
+### 4. (Opcional) Simular 10 reportes seguidos → al 11° debe bloquear límite diario
+### → Solo si quieres probar el límite de 10/día (puedes copiar/pegar 11 veces cambiando espacioId)

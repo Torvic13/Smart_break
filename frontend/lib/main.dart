@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 // DAO Factory (usa backend para auth y espacios)
 import 'dao/dao_factory.dart';
-import 'dao/http_dao_factory.dart';
+import 'dao/http_dao_factory.dart'; // Asegúrate de que este archivo exista y esté correcto
 
 // Servicios
 import 'dao/auth_service.dart';
@@ -13,6 +13,11 @@ import 'screens/welcome_screen.dart';
 import 'screens/mapa_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_profile_screen.dart';
+
+// 💡 IP para Emulador de Android (Apuntando al puerto 4000 de tu backend)
+// Ajusta si estás usando un dispositivo físico o iOS.
+const String kBaseUrl = 'http://10.0.2.2:4000/api'; 
+// Si usas un dispositivo físico o iOS, usa tu IP de red: 'http://192.168.x.x:4000/api'
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +42,8 @@ class SmartBreakApp extends StatelessWidget {
 
         // 🔹 DAOFactory usando backend
         Provider<DAOFactory>(
-          create: (_) => HttpDAOFactory(),
+          // Llama al constructor con el parámetro requerido 'baseUrl'
+          create: (_) => HttpDAOFactory(baseUrl: kBaseUrl), 
         ),
       ],
       child: MaterialApp(

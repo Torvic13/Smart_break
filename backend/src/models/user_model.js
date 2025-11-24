@@ -60,15 +60,36 @@ const userSchema = new mongoose.Schema(
       default: function () { return this.rol === 'estudiante' ? 'No especificada' : undefined; },
       trim: true,
     },
+
+    // ==================================================================
+    // NUEVOS CAMPOS PARA HU22 – CONTROL DE ABUSO EN REPORTES
+    // ==================================================================
+    ultimoReportePorEspacio: {
+      type: Map,
+      of: Date,
+      default: () => new Map() // espacioId → Date del último reporte
+    },
+    reportesHoy: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    ultimoResetDiario: {
+      type: Date,
+      default: Date.now
+    }
+    // ==================================================================
   },
   { versionKey: false }
 );
 
+// Generar idUsuario si no existe
 userSchema.pre('validate', function (next) {
   if (!this.idUsuario) this.idUsuario = randomUUID();
   next();
 });
 
+// Formatear salida JSON
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
     if (ret.fechaCreacion instanceof Date) {
