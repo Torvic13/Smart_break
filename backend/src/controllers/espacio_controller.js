@@ -1,127 +1,208 @@
 // src/controllers/espacio_controller.js
 const Espacio = require('../models/espacio_model');
 
-// GET /api/v1/espacios
-async function listarEspacios(_req, res) {
-  try {
-    const espacios = await Espacio.find().sort({ nombre: 1 });
-    return res.json(espacios);
-  } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: 'Error al listar espacios', error: err.message });
-  }
+// ================================================================
+// Helper para calcular nivelOcupacion según porcentaje
+// ================================================================
+function calcularNivelOcupacion(ocupacionActual, aforoMaximo) {
+  if (!aforoMaximo || aforoMaximo <= 0) return 'vacio';
+  if (ocupacionActual <= 0) return 'vacio';
+
+  const ratio = ocupacionActual / aforoMaximo;
+
+  if (ratio <= 0.25) return 'bajo';
+  if (ratio <= 0.60) return 'medio';
+  if (ratio <= 0.90) return 'alto';
+  return 'lleno';
 }
 
-// POST /api/v1/espacios  (solo admin)
-async function crearEspacio(req, res) {
+// ================================================================
+// CRUD BÁSICO
+// ================================================================
+exports.listarEspacios = async (_req, res) => {
   try {
-    const {
-      nombre,
-      tipo,
-      nivelOcupacion = 'vacio',
-      promedioCalificacion = 0,
-      ubicacion,
-      caracteristicas = [],
-      categoriaIds = [],
-    } = req.body;
-
-    if (!nombre || !tipo || !ubicacion?.latitud || !ubicacion?.longitud) {
-      return res.status(400).json({
-        message:
-          'nombre, tipo y ubicacion (latitud, longitud) son obligatorios',
-      });
-    }
-
-    const nuevo = await Espacio.create({
-      nombre,
-      tipo,
-      nivelOcupacion,
-      promedioCalificacion,
-      ubicacion,
-      caracteristicas,
-      categoriaIds,
-    });
-
-    return res
-      .status(201)
-      .json({ message: 'Espacio creado', espacio: nuevo.toJSON() });
+    const espacios = await Espacio.find({});
+    res.json(espacios);
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: 'Error al crear espacio', error: err.message });
+    console.error('Error listando espacios:', err);
+    res.status(500).json({ error: 'Error al listar espacios' });
   }
-}
+};
 
-// (Opcional) GET /api/v1/espacios/:idEspacio
-async function obtenerEspacio(req, res) {
+exports.crearEspacio = async (req, res) => {
+  try {
+    const espacio = new Espacio(req.body);
+    await espacio.save();
+    res.status(201).json(espacio);
+  } catch (err) {
+    console.error('Error creando espacio:', err);
+    res.status(400).json({ error: 'Error al crear espacio', detalle: err.message });
+  }
+};
+
+exports.obtenerEspacio = async (req, res) => {
   try {
     const { idEspacio } = req.params;
+
     const espacio = await Espacio.findOne({ idEspacio });
-
     if (!espacio) {
-      return res.status(404).json({ message: 'Espacio no encontrado' });
+      return res.status(404).json({ error: 'Espacio no encontrado' });
     }
 
-    return res.json(espacio);
+    res.json(espacio);
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: 'Error al obtener espacio', error: err.message });
+    console.error('Error obteniendo espacio:', err);
+    res.status(500).json({ error: 'Error al obtener espacio' });
   }
-}
+};
 
-// PUT /api/v1/espacios/:idEspacio
-async function actualizarEspacio(req, res) {
+exports.actualizarEspacio = async (req, res) => {
   try {
     const { idEspacio } = req.params;
-    const datosActualizados = req.body;
 
     const espacio = await Espacio.findOneAndUpdate(
       { idEspacio },
-      datosActualizados,
-      { new: true, runValidators: true }
+      req.body,
+      { new: true }
     );
 
     if (!espacio) {
-      return res.status(404).json({ message: 'Espacio no encontrado' });
+      return res.status(404).json({ error: 'Espacio no encontrado' });
     }
 
-    return res.json({ message: 'Espacio actualizado', espacio });
+    res.json(espacio);
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: 'Error al actualizar espacio', error: err.message });
+    console.error('Error actualizando espacio:', err);
+    res.status(400).json({ error: 'Error al actualizar espacio', detalle: err.message });
   }
-}
+};
 
-// DELETE /api/v1/espacios/:idEspacio
-async function eliminarEspacio(req, res) {
+exports.eliminarEspacio = async (req, res) => {
   try {
     const { idEspacio } = req.params;
-    const espacio = await Espacio.findOneAndDelete({ idEspacio });
 
-    if (!espacio) {
-      return res.status(404).json({ message: 'Espacio no encontrado' });
+    const result = await Espacio.deleteOne({ idEspacio });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Espacio no encontrado' });
     }
 
-    return res.json({ message: 'Espacio eliminado', espacio });
+    res.json({ ok: true, message: 'Espacio eliminado' });
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: 'Error al eliminar espacio', error: err.message });
+    console.error('Error eliminando espacio:', err);
+    res.status(500).json({ error: 'Error al eliminar espacio' });
   }
-}
+};
 
-module.exports = { 
-  listarEspacios, 
-  crearEspacio, 
-  obtenerEspacio, 
-  actualizarEspacio, 
-  eliminarEspacio 
+// ================================================================
+// OCUPAR ESPACIO
+// ================================================================
+exports.registrarOcupacion = async (req, res) => {
+  try {
+    const { idEspacio } = req.params;
+
+    const espacio = await Espacio.findOne({ idEspacio });
+    if (!espacio) {
+      return res.status(404).json({ error: 'Espacio no encontrado' });
+    }
+
+    // Si no está definido, inicializamos en 0
+    if (typeof espacio.ocupacionActual !== 'number') {
+      espacio.ocupacionActual = 0;
+    }
+
+    // Validar aforo
+    if (espacio.ocupacionActual >= espacio.aforoMaximo) {
+      return res.status(400).json({ error: 'El espacio ya está al 100% de su aforo' });
+    }
+
+    espacio.ocupacionActual += 1;
+
+    espacio.nivelOcupacion = calcularNivelOcupacion(
+      espacio.ocupacionActual,
+      espacio.aforoMaximo
+    );
+
+    await espacio.save();
+
+    res.json({
+      ok: true,
+      message: 'Ocupación registrada',
+      ocupacionActual: espacio.ocupacionActual,
+      aforoMaximo: espacio.aforoMaximo,
+      nivelOcupacion: espacio.nivelOcupacion,
+      espacio,
+    });
+  } catch (err) {
+    console.error('Error registrando ocupación:', err);
+    res.status(500).json({ error: 'Error al registrar ocupación' });
+  }
+};
+
+// ================================================================
+// LIBERAR ESPACIO
+// ================================================================
+exports.liberarOcupacion = async (req, res) => {
+  try {
+    const { idEspacio } = req.params;
+
+    const espacio = await Espacio.findOne({ idEspacio });
+    if (!espacio) {
+      return res.status(404).json({ error: 'Espacio no encontrado' });
+    }
+
+    if (typeof espacio.ocupacionActual !== 'number') {
+      espacio.ocupacionActual = 0;
+    }
+
+    // No bajamos más de 0
+    if (espacio.ocupacionActual > 0) {
+      espacio.ocupacionActual -= 1;
+    }
+
+    espacio.nivelOcupacion = calcularNivelOcupacion(
+      espacio.ocupacionActual,
+      espacio.aforoMaximo
+    );
+
+    await espacio.save();
+
+    res.json({
+      ok: true,
+      message: 'Ocupación liberada',
+      ocupacionActual: espacio.ocupacionActual,
+      aforoMaximo: espacio.aforoMaximo,
+      nivelOcupacion: espacio.nivelOcupacion,
+      espacio,
+    });
+  } catch (err) {
+    console.error('Error liberando ocupación:', err);
+    res.status(500).json({ error: 'Error al liberar ocupación' });
+  }
+};
+// ===================== REINICIAR OCUPACIÓN GLOBAL =====================
+
+exports.reiniciarOcupacionGlobal = async (_req, res) => {
+  try {
+    // Pone ocupacionActual = 0 y nivelOcupacion = 'vacio' en todos los documentos
+    const result = await Espacio.updateMany(
+      {},
+      {
+        $set: {
+          ocupacionActual: 0,
+          nivelOcupacion: 'vacio',
+        },
+      }
+    );
+
+    res.json({
+      ok: true,
+      message: 'Ocupación reiniciada en todos los espacios',
+      modificados: result.modifiedCount ?? result.nModified,
+    });
+  } catch (err) {
+    console.error('Error reiniciando ocupación global:', err);
+    res
+      .status(500)
+      .json({ error: 'Error al reiniciar ocupación de los espacios' });
+  }
 };

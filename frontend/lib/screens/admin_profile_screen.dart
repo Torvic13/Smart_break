@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../dao/auth_service.dart';
+import '../dao/dao_factory.dart';
+import '../dao/espacio_dao.dart';
 import '../models/administrador_sistema.dart';
 import 'gestionar_categorias_screen.dart';
 import 'welcome_screen.dart';
@@ -27,7 +31,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Future<void> _loadAdminProfile() async {
     final usuarioActual = AuthService().usuarioActual;
 
-    if (usuarioActual != null && usuarioActual is AdministradorSistema && mounted) {
+    if (usuarioActual != null &&
+        usuarioActual is AdministradorSistema &&
+        mounted) {
       setState(() {
         _adminProfile = usuarioActual;
         _isLoading = false;
@@ -55,7 +61,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               AuthService().logout();
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const WelcomeScreen(),
+                ),
                 (route) => false,
               );
             },
@@ -67,6 +75,59 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _reiniciarOcupacionEspacios() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reiniciar ocupación'),
+        content: const Text(
+          'Esto pondrá todos los espacios en 0 (Vacío).\n\n'
+          '¿Seguro que deseas continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Sí, reiniciar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final daoFactory = Provider.of<DAOFactory>(context, listen: false);
+      final EspacioDAO espacioDao = daoFactory.createEspacioDAO();
+
+      await espacioDao.resetOcupacionGlobal();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ocupación reiniciada en todos los espacios.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al reiniciar ocupación: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -144,7 +205,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => CrearEspacioScreen(
-                      usuarioActual: _adminProfile!, //
+                      usuarioActual: _adminProfile!,
                     ),
                   ),
                 );
@@ -169,7 +230,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
             const SizedBox(height: 12),
 
-            // 👇 NUEVA Tarjeta de Gestionar Comentarios
+            // Tarjeta de Gestionar Comentarios
             _buildAdminOptionCard(
               title: 'Gestionar Comentarios',
               subtitle: 'Revisar, editar y eliminar comentarios',
@@ -182,6 +243,16 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   ),
                 );
               },
+            ),
+
+            const SizedBox(height: 12),
+
+            // 🔥 NUEVA tarjeta: Reiniciar ocupación
+            _buildAdminOptionCard(
+              title: 'Reiniciar ocupación de espacios',
+              subtitle: 'Pone todos los espacios en 0 y estado Vacío',
+              icon: Icons.refresh,
+              onTap: _reiniciarOcupacionEspacios,
             ),
 
             const SizedBox(height: 32),
@@ -224,7 +295,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               gradient: LinearGradient(
                 colors: [
                   const Color(0xFFF97316).withOpacity(0.8),
-                  const Color(0xFFF97316)
+                  const Color(0xFFF97316),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,

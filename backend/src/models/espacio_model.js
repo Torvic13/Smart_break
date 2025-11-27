@@ -18,8 +18,8 @@ const caracteristicaSchema = new mongoose.Schema(
   {
     idCaracteristica: { type: String, required: true },
     nombre: { type: String, required: true },
-    valor: { type: String, required: true },      // 👈 NUEVO
-    tipoFiltro: { type: String, required: true }, // 👈 NUEVO
+    valor: { type: String, required: true },
+    tipoFiltro: { type: String, required: true },
   },
   { _id: false }
 );
@@ -44,11 +44,26 @@ const espacioSchema = new mongoose.Schema(
       required: true,
       trim: true, // "Biblioteca", "Cafetería", etc.
     },
+
+    // 🔹 Nivel ocupación semáforo
     nivelOcupacion: {
       type: String,
       enum: NIVEL_OCUPACION,
       default: 'vacio',
     },
+
+    // 🔹 NUEVOS CAMPOS DE AFORO
+    aforoMaximo: {
+      type: Number,
+      default: 50,   // valor por defecto para espacios antiguos
+      min: 1,
+    },
+    ocupacionActual: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     promedioCalificacion: {
       type: Number,
       default: 0,
@@ -74,6 +89,15 @@ const espacioSchema = new mongoose.Schema(
 // Generar idEspacio si no viene
 espacioSchema.pre('validate', function (next) {
   if (!this.idEspacio) this.idEspacio = randomUUID();
+
+  // 🔹 Asegurar valores por defecto también en docs antiguos
+  if (!this.aforoMaximo || this.aforoMaximo <= 0) {
+    this.aforoMaximo = 50;
+  }
+  if (this.ocupacionActual == null || this.ocupacionActual < 0) {
+    this.ocupacionActual = 0;
+  }
+
   next();
 });
 

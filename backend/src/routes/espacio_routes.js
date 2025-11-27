@@ -6,6 +6,9 @@ const {
   obtenerEspacio,
   actualizarEspacio,
   eliminarEspacio,
+  registrarOcupacion,     // 👈 si ya lo tienes
+  liberarOcupacion,       // 👈 si ya lo tienes
+  reiniciarOcupacionGlobal, // 👈 NUEVO
 } = require('../controllers/espacio_controller');
 const { requireAuth, requireRole } = require('../middlewares/auth_middleware');
 
@@ -24,6 +27,31 @@ router.post('/', requireAuth, requireRole('admin'), crearEspacio);
 router.put('/:idEspacio', requireAuth, requireRole('admin'), actualizarEspacio);
 
 // Solo admin puede eliminar espacios
-router.delete('/:idEspacio', requireAuth, requireRole('admin'), eliminarEspacio);
+router.delete(
+  '/:idEspacio',
+  requireAuth,
+  requireRole('admin'),
+  eliminarEspacio
+);
+
+// 👇 Rutas de ocupación por espacio (si ya las tienes)
+router.post(
+  '/:idEspacio/ocupar',
+  requireAuth,
+  registrarOcupacion
+);
+router.post(
+  '/:idEspacio/liberar',
+  requireAuth,
+  liberarOcupacion
+);
+
+// 👇 NUEVA ruta global para admin: reiniciar ocupación de todos los espacios
+router.post(
+  '/reset-ocupacion',
+  requireAuth,
+  requireRole('admin'),
+  reiniciarOcupacionGlobal
+);
 
 module.exports = router;

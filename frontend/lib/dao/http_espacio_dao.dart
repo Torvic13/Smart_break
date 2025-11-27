@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/espacio.dart';
 import 'espacio_dao.dart';
-import 'auth_service.dart';  // para obtener el JWT
+import 'auth_service.dart'; // para obtener el JWT
 
 class HttpEspacioDAO implements EspacioDAO {
   final String baseUrl;
@@ -31,12 +31,15 @@ class HttpEspacioDAO implements EspacioDAO {
   Map<String, dynamic> _normalizeEspacioJson(Map<String, dynamic> json) {
     final normalized = Map<String, dynamic>.from(json);
 
+    // idEspacio fallback
     if (!normalized.containsKey('idEspacio') && normalized['_id'] != null) {
       normalized['idEspacio'] = normalized['_id'];
     }
 
+    // nivelOcupacion por defecto
     normalized['nivelOcupacion'] ??= 'medio';
 
+    // promedioCalificacion siempre double
     final prom = normalized['promedioCalificacion'];
     if (prom is int) {
       normalized['promedioCalificacion'] = prom.toDouble();
@@ -44,6 +47,7 @@ class HttpEspacioDAO implements EspacioDAO {
       normalized['promedioCalificacion'] = 0.0;
     }
 
+    // Ubicación con idUbicacion calculado
     if (normalized['ubicacion'] != null && normalized['ubicacion'] is Map) {
       final ubic = Map<String, dynamic>.from(
         normalized['ubicacion'] as Map<String, dynamic>,
@@ -74,7 +78,8 @@ class HttpEspacioDAO implements EspacioDAO {
 
     if (resp.statusCode != 200) {
       throw Exception(
-          'Error al cargar espacios (${resp.statusCode}): ${resp.body}');
+        'Error al cargar espacios (${resp.statusCode}): ${resp.body}',
+      );
     }
 
     final decoded = jsonDecode(resp.body);
@@ -93,7 +98,8 @@ class HttpEspacioDAO implements EspacioDAO {
     if (resp.statusCode == 404) return null;
     if (resp.statusCode != 200) {
       throw Exception(
-          'Error al obtener espacio ($id) (${resp.statusCode}): ${resp.body}');
+        'Error al obtener espacio ($id) (${resp.statusCode}): ${resp.body}',
+      );
     }
 
     final decoded = jsonDecode(resp.body);
@@ -102,7 +108,8 @@ class HttpEspacioDAO implements EspacioDAO {
         : decoded;
 
     return Espacio.fromJson(
-        _normalizeEspacioJson(json as Map<String, dynamic>));
+      _normalizeEspacioJson(json as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -117,57 +124,63 @@ class HttpEspacioDAO implements EspacioDAO {
   Future<List<Espacio>> obtenerPorNivelOcupacion(String nivel) async {
     final todos = await obtenerTodos();
     return todos
-        .where((e) =>
-            e.nivelOcupacion.name.toLowerCase() == nivel.toLowerCase())
+        .where(
+          (e) => e.nivelOcupacion.name.toLowerCase() == nivel.toLowerCase(),
+        )
         .toList();
   }
 
   @override
   Future<List<Espacio>> filtrarPorCaracteristicas(
-      Map<String, String> filtros) async {
+    Map<String, String> filtros,
+  ) async {
     final todos = await obtenerTodos();
     return todos.where((espacio) {
       return filtros.entries.every((filtro) {
-        return espacio.caracteristicas.any((c) =>
-            c.nombre.toLowerCase() == filtro.key.toLowerCase() &&
-            c.valor.toLowerCase().contains(filtro.value.toLowerCase()));
+        return espacio.caracteristicas.any(
+          (c) =>
+              c.nombre.toLowerCase() == filtro.key.toLowerCase() &&
+              c.valor.toLowerCase().contains(filtro.value.toLowerCase()),
+        );
       });
     }).toList();
   }
 
-  // 🔸 Crear espacio (POST /api/v1/espacios)
+  // -------------------------------------------------------------
+  // Crear espacio (POST /api/v1/espacios)
+  // -------------------------------------------------------------
   @override
-Future<void> crear(Espacio espacio) async {
-  // 1) Intentar usar el token en memoria
-  var token = AuthService().token;
+  Future<void> crear(Espacio espacio) async {
+    // 1) Intentar usar el token en memoria
+    var token = AuthService().token;
 
-  // 2) Si es null, intentar cargarlo desde SharedPreferences
-  if (token == null) {
-    await AuthService().cargarSesion();
-    token = AuthService().token;
-  }
+    // 2) Si es null, intentar cargarlo desde SharedPreferences
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
 
-  // 3) Si sigue siendo null, sí lanzamos la excepción
-  if (token == null || token.isEmpty) {
-    throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
-  }
+    // 3) Si sigue siendo null, lanzamos la excepción
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
 
-  // 4) Hacemos el POST al backend
-  final resp = await http.post(
-    _uri(),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode(espacio.toJson()),
-  );
-
-  if (resp.statusCode != 201) {
-    throw Exception(
-      'Error al crear espacio (${resp.statusCode}): ${resp.body}',
+    // 4) Hacemos el POST al backend
+    final resp = await http.post(
+      _uri(),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(espacio.toJson()),
     );
+
+    if (resp.statusCode != 201) {
+      throw Exception(
+        'Error al crear espacio (${resp.statusCode}): ${resp.body}',
+      );
+    }
   }
-}
 
   @override
   Future<void> actualizar(Espacio espacio) async {
@@ -222,6 +235,118 @@ Future<void> crear(Espacio espacio) async {
     if (resp.statusCode != 200) {
       throw Exception(
         'Error al eliminar espacio (${resp.statusCode}): ${resp.body}',
+      );
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 🔹 OCUPAR ESPACIO (POST /api/v1/espacios/:idEspacio/ocupar)
+  // -------------------------------------------------------------
+  @override
+  Future<Espacio> ocuparEspacio(String idEspacio) async {
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.post(
+      _uri('/$idEspacio/ocupar'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al ocupar espacio ($idEspacio) (${resp.statusCode}): ${resp.body}',
+      );
+    }
+
+    final decoded = jsonDecode(resp.body);
+    // El back devuelve { ok, message, ocupacionActual, aforoMaximo, nivelOcupacion, espacio }
+    final jsonEspacio = decoded is Map && decoded['espacio'] != null
+        ? decoded['espacio']
+        : decoded;
+
+    return Espacio.fromJson(
+      _normalizeEspacioJson(jsonEspacio as Map<String, dynamic>),
+    );
+  }
+
+  // -------------------------------------------------------------
+  // 🔹 LIBERAR ESPACIO (POST /api/v1/espacios/:idEspacio/liberar)
+  // -------------------------------------------------------------
+  @override
+  Future<Espacio> liberarEspacio(String idEspacio) async {
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.post(
+      _uri('/$idEspacio/liberar'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al liberar espacio ($idEspacio) (${resp.statusCode}): ${resp.body}',
+      );
+    }
+
+    final decoded = jsonDecode(resp.body);
+    final jsonEspacio = decoded is Map && decoded['espacio'] != null
+        ? decoded['espacio']
+        : decoded;
+
+    return Espacio.fromJson(
+      _normalizeEspacioJson(jsonEspacio as Map<String, dynamic>),
+    );
+  }
+
+  // -------------------------------------------------------------
+  // 🔹 NUEVO: REINICIAR OCUPACIÓN GLOBAL (POST /api/v1/espacios/reset-ocupacion)
+  // -------------------------------------------------------------
+  @override
+  Future<void> resetOcupacionGlobal() async {
+    var token = AuthService().token;
+
+    if (token == null) {
+      await AuthService().cargarSesion();
+      token = AuthService().token;
+    }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay token de sesión. Inicia sesión nuevamente.');
+    }
+
+    final resp = await http.post(
+      _uri('/reset-ocupacion'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (resp.statusCode != 200) {
+      throw Exception(
+        'Error al reiniciar ocupación (${resp.statusCode}): ${resp.body}',
       );
     }
   }

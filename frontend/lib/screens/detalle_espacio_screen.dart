@@ -3,12 +3,11 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:provider/provider.dart';
 
 import '../models/espacio.dart';
-import '../models/disponibilidad.dart';
 import '../models/calificacion.dart';
 import '../models/incidencia.dart';
 
-import '../dao/mock_disponibilidad_dao.dart';
 import '../dao/dao_factory.dart';
+import '../dao/espacio_dao.dart';
 import '../dao/calificacion_dao.dart';
 import '../dao/auth_service.dart';
 import '../dao/mock_incidencia_dao.dart';
@@ -26,18 +25,23 @@ class DetalleEspacioScreen extends StatefulWidget {
 
 class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
   final TextEditingController _comentarioController = TextEditingController();
-  final MockDisponibilidadDAO _daoDisponibilidad = MockDisponibilidadDAO();
   final MockIncidenciaDAO _daoIncidenciaMock = MockIncidenciaDAO();
 
   final String _token =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLWlkIiwiZW1haWwiOiJ1c3VhcmlvQGVtYWlsLmNvbSIsInJvbCI6ImVzdHVkaWFudGUiLCJpYXQiOjE2MzIzMjMyMzIsImV4cCI6MTYzMjMzNjYzMn0.test';
 
   late CalificacionDAO _calificacionDao;
+  late EspacioDAO _espacioDao;
 
   double _puntuacion = 0.0;
   bool _isSubmitting = false;
 
-  String? _estadoSeleccionado;
+  // ====== ESTADO LOCAL DE OCUPACIÓN ======
+  late NivelOcupacion _nivelOcupacionActual;
+  int? _ocupacionActual;
+  int? _aforoMaximo;
+  bool _isOcupando = false;
+  bool _isLiberando = false;
 
   List<Incidencia> _incidencias = [];
   List<Calificacion> _calificaciones = [];
@@ -50,11 +54,17 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
 
     final daoFactory = Provider.of<DAOFactory>(context, listen: false);
     _calificacionDao = daoFactory.createCalificacionDAO();
+    _espacioDao = daoFactory.createEspacioDAO();
 
-    _cargarDisponibilidad();
+    // Inicializamos estado de ocupación con lo que viene del modelo
+    _nivelOcupacionActual = widget.espacio.nivelOcupacion;
+    _ocupacionActual = widget.espacio.ocupacionActual;
+    _aforoMaximo = widget.espacio.aforoMaximo;
+
     _cargarCalificaciones();
     _cargarIncidencias();
   }
+  bool _yaOcupando = false; // true = este usuario ya dijo "Estoy ocupando un lugar"
 
   // ==========================
   //      INCIDENCIAS
@@ -64,7 +74,9 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     try {
       final incidencias =
           await IncidenciaService.obtenerIncidenciasEspacio(
-              widget.espacio.idEspacio, _token);
+        widget.espacio.idEspacio,
+        _token,
+      );
 
       if (mounted) {
         setState(() => _incidencias = incidencias);
@@ -78,15 +90,6 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
           setState(() => _incidencias = incidencias);
         }
       } catch (_) {}
-    }
-  }
-
-  Future<void> _cargarDisponibilidad() async {
-    final disponibilidad =
-        await _daoDisponibilidad.obtenerPorEspacio(widget.espacio.idEspacio);
-
-    if (disponibilidad != null && mounted) {
-      setState(() => _estadoSeleccionado = disponibilidad.estado);
     }
   }
 
@@ -112,6 +115,10 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     _comentarioController.dispose();
     super.dispose();
   }
+
+  // ==========================
+  //   OCUPACIÓN (BACKEND)
+  // ==========================
 
   Color _getOcupacionColor(NivelOcupacion nivel) {
     switch (nivel) {
@@ -160,31 +167,104 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     }
   }
 
-  Future<void> _reportarDisponibilidad(String estado) async {
-    setState(() => _estadoSeleccionado = estado);
-
-    final nueva =
-        Disponibilidad(idEspacio: widget.espacio.idEspacio, estado: estado);
-
-    await _daoDisponibilidad.guardar(nueva);
-
+  Future<void> _ocuparEspacio() async {
+  // 🚫 Si ya dijo que está ocupando, no sumamos otra vez
+  if (_yaOcupando) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            estado == 'disponible'
-                ? 'Espacio reportado como disponible'
-                : 'Espacio reportado como ocupado'),
-        backgroundColor:
-            estado == 'disponible' ? Colors.green : Colors.redAccent,
+      const SnackBar(
+        content: Text('Ya registraste que estás ocupando este espacio.'),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
       ),
     );
+    return;
   }
+
+  if (_isOcupando) return; // tu protección anterior
+
+  setState(() => _isOcupando = true);
+
+  try {
+    final actualizado =
+        await _espacioDao.ocuparEspacio(widget.espacio.idEspacio);
+
+    if (!mounted) return;
+
+    setState(() {
+      _nivelOcupacionActual = actualizado.nivelOcupacion;
+      _ocupacionActual = actualizado.ocupacionActual;
+      _aforoMaximo = actualizado.aforoMaximo;
+      _yaOcupando = true; // ✅ ahora este usuario ya ocupa
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Se registró tu presencia en el espacio.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error al registrar ocupación: $e'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  } finally {
+    if (mounted) setState(() => _isOcupando = false);
+  }
+}
+
+Future<void> _liberarEspacio() async {
+  // 🚫 No tiene sentido liberar si nunca marcó que ocupaba
+  if (!_yaOcupando) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Aún no has marcado que ocupas este espacio.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
+  if (_isLiberando) return; // tu protección anterior
+
+  setState(() => _isLiberando = true);
+
+  try {
+    final actualizado =
+        await _espacioDao.liberarEspacio(widget.espacio.idEspacio);
+
+    if (!mounted) return;
+
+    setState(() {
+      _nivelOcupacionActual = actualizado.nivelOcupacion;
+      _ocupacionActual = actualizado.ocupacionActual;
+      _aforoMaximo = actualizado.aforoMaximo;
+      _yaOcupando = false; // ✅ ya no está ocupando
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Se liberó tu lugar en el espacio.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error al liberar ocupación: $e'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  } finally {
+    if (mounted) setState(() => _isLiberando = false);
+  }
+}
     // ==========================
   //   DIÁLOGO REPORTAR INCIDENCIA
   // ==========================
-
   void _mostrarDialogoReporteIncidencia() {
     final TextEditingController descripcionController =
         TextEditingController();
@@ -366,7 +446,8 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
-    Future<void> _editarCalificacion(Calificacion calif) async {
+
+  Future<void> _editarCalificacion(Calificacion calif) async {
     double nuevaPuntuacion = calif.puntuacion.toDouble();
     final controller = TextEditingController(text: calif.comentario);
 
@@ -640,7 +721,7 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                         CircleAvatar(
                           radius: 30,
                           backgroundColor:
-                              _getOcupacionColor(widget.espacio.nivelOcupacion),
+                              _getOcupacionColor(_nivelOcupacionActual),
                           child: Icon(
                             _getIconForTipo(widget.espacio.tipo),
                             color: Colors.white,
@@ -682,26 +763,37 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: _getOcupacionColor(
-                          widget.espacio.nivelOcupacion,
+                          _nivelOcupacionActual,
                         ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _getOcupacionColor(
-                            widget.espacio.nivelOcupacion,
+                            _nivelOcupacionActual,
                           ),
                           width: 1,
                         ),
                       ),
                       child: Text(
-                        _getOcupacionText(widget.espacio.nivelOcupacion),
+                        _getOcupacionText(_nivelOcupacionActual),
                         style: TextStyle(
                           color: _getOcupacionColor(
-                            widget.espacio.nivelOcupacion,
+                            _nivelOcupacionActual,
                           ),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
+                    const SizedBox(height: 8),
+
+                    if (_aforoMaximo != null && _aforoMaximo! > 0)
+                      Text(
+                        'Ocupación actual: ${_ocupacionActual ?? 0} / $_aforoMaximo personas',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+
                     const SizedBox(height: 16),
 
                     // Calificación promedio
@@ -725,36 +817,16 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
 
             const SizedBox(height: 20),
 
-            // === Reportar disponibilidad ===
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Reportar disponibilidad',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildEstadoButton('disponible', Colors.green),
-                        _buildEstadoButton('ocupado', Colors.redAccent),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            // === COMPONENTE: OCUPACIÓN INTERACTIVA ===
+            OcupacionInteractivaCard(
+              ocupacionActual: _ocupacionActual,
+              aforoMaximo: _aforoMaximo,
+              nivelLabel: _getOcupacionText(_nivelOcupacionActual),
+              nivelColor: _getOcupacionColor(_nivelOcupacionActual),
+              isOcupando: _isOcupando,
+              isLiberando: _isLiberando,
+              onOcupar: _ocuparEspacio,
+              onLiberar: _liberarEspacio,
             ),
 
             const SizedBox(height: 20),
@@ -1041,33 +1113,6 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
     );
   }
 
-  Widget _buildEstadoButton(String estado, Color color) {
-    final bool isSelected = _estadoSeleccionado == estado;
-
-    return ElevatedButton.icon(
-      onPressed: () => _reportarDisponibilidad(estado),
-      icon: Icon(
-        estado == 'disponible' ? Icons.check_circle : Icons.cancel,
-        color: isSelected ? Colors.white : color,
-      ),
-      label: Text(
-        estado == 'disponible' ? 'Disponible' : 'Ocupado',
-        style: TextStyle(
-          color: isSelected ? Colors.white : color,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? color : Colors.white,
-        side: BorderSide(color: color, width: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-
   Widget _buildCalificacionItem({
     required Calificacion calificacion,
     required bool esPropia,
@@ -1142,6 +1187,162 @@ class _DetalleEspacioScreenState extends State<DetalleEspacioScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ===============================
+//   COMPONENTE: OCUPACIÓN CARD
+// ===============================
+
+class OcupacionInteractivaCard extends StatelessWidget {
+  final int? ocupacionActual;
+  final int? aforoMaximo;
+  final String nivelLabel;
+  final Color nivelColor;
+
+  final bool isOcupando;
+  final bool isLiberando;
+  final VoidCallback onOcupar;
+  final VoidCallback onLiberar;
+
+  const OcupacionInteractivaCard({
+    super.key,
+    required this.ocupacionActual,
+    required this.aforoMaximo,
+    required this.nivelLabel,
+    required this.nivelColor,
+    required this.isOcupando,
+    required this.isLiberando,
+    required this.onOcupar,
+    required this.onLiberar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final int actual = ocupacionActual ?? 0;
+    final int? aforo = aforoMaximo;
+    final bool tieneAforo = aforo != null && aforo > 0;
+
+    String detalleOcupacion;
+    if (tieneAforo) {
+      final ratio = (actual / aforo!).clamp(0, 1);
+      final porcentaje = (ratio * 100).toStringAsFixed(0);
+      detalleOcupacion = '$actual / $aforo personas • $porcentaje%';
+    } else {
+      detalleOcupacion = '$actual personas reportadas';
+    }
+
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ocupación en tiempo real',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              detalleOcupacion,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: nivelColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: nivelColor, width: 1),
+              ),
+              child: Text(
+                nivelLabel,
+                style: TextStyle(
+                  color: nivelColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isOcupando ? null : onOcupar,
+                icon: isOcupando
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.event_seat, color: Colors.white),
+                label: Text(
+                  isOcupando ? 'Registrando...' : 'Estoy ocupando un lugar',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[700],
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: isLiberando ? null : onLiberar,
+                icon: isLiberando
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.event_busy),
+                label: Text(
+                  isLiberando ? 'Liberando...' : 'Ya me retiré de este espacio',
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  side: BorderSide(color: Colors.orange[700]!),
+                  foregroundColor: Colors.orange[700],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Usa estos botones solo cuando realmente entres o salgas del espacio para mantener información confiable.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
